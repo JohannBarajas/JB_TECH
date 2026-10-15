@@ -424,8 +424,12 @@ function renderPhones() {
       <div class="phone-details">
         <h2 class="phone-name" title="${escapeHtml(phone.name)}">${escapeHtml(phone.name)}</h2>
         <div class="customer-actions">
-          <button class="customer-action share-action" type="button" data-share="${escapeHtml(phone.id)}">Compartir</button>
-          <a class="customer-action whatsapp-action" href="https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hola, me interesa ${phone.name} (${formatPrice(phone.price, phone.currency || phone.currencyNote)}). ${phoneShareUrl(phone)}`)}" target="_blank" rel="noopener noreferrer">Consultar por WhatsApp</a>
+          <button class="customer-action share-action" type="button" data-share="${escapeHtml(phone.id)}" aria-label="Compartir ${escapeHtml(phone.name)}" title="Compartir">
+            <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M14 5l7 7-7 7M21 12H9a6 6 0 0 0-6 6v1"/></svg>
+          </button>
+          <a class="customer-action whatsapp-action" href="https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hola, me interesa ${phone.name} (${formatPrice(phone.price, phone.currency || phone.currencyNote)}). ${phoneShareUrl(phone)}`)}" target="_blank" rel="noopener noreferrer" aria-label="Consultar ${escapeHtml(phone.name)} por WhatsApp" title="WhatsApp">
+            <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M20.5 11.8a8.5 8.5 0 0 1-12.6 7.4L3 20.5l1.3-4.7A8.5 8.5 0 1 1 20.5 11.8Z"/><path d="M8.2 7.7c.2-.4.4-.4.7-.4h.5c.2 0 .4.1.5.4l.7 1.7c.1.2.1.4-.1.6l-.5.6c-.2.2-.2.4 0 .6.5.8 1.1 1.4 1.9 1.9.2.1.4.1.6-.1l.7-.8c.2-.2.4-.2.6-.1l1.6.8c.2.1.3.3.3.5 0 .3-.2 1.1-.7 1.5-.5.4-1.1.6-1.9.4-.8-.2-1.9-.6-3.1-1.7-1.4-1.2-2.2-2.7-2.4-3.5-.2-.8 0-1.6.6-2.4Z"/></svg>
+          </a>
         </div>
         ${adminAuthorized ? `<p class="admin-cost">Costo: <strong>${escapeHtml(formatPrice(phone.cost))}</strong></p>` : ""}
         ${adminAuthorized && phone.distributor ? `<p class="admin-distributor">Tienda / distribuidor: <strong>${escapeHtml(phone.distributor)}</strong></p>` : ""}

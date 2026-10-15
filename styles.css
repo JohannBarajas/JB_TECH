@@ -111,10 +111,12 @@ h1, h2, p { margin-top: 0; }
 .icon-button.delete:hover { color: #aa433c; }
 .phone-details { padding: 15px 15px 16px; }
 .phone-name { margin: 0 0 6px; overflow: hidden; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.customer-actions { margin-top: 11px; display: flex; flex-wrap: wrap; gap: 7px; }
-.customer-action { min-height: 34px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 8px; background: white; color: #4f5b50; font-size: 11px; font-weight: 700; text-decoration: none; }
+.customer-actions { margin-top: 11px; display: flex; gap: 7px; }
+.customer-action { width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 50%; background: white; color: #4f5b50; text-decoration: none; }
+.customer-action svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
 .customer-action:hover { border-color: #c7d6c8; background: #f7faf6; color: var(--green); }
 .whatsapp-action { border-color: #cce6d1; background: #f0faf2; color: #24733a; }
+.whatsapp-action svg path + path { fill: currentColor; stroke: none; }
 .phone-price { margin: 0; color: var(--green); font-family: Manrope, sans-serif; font-size: 20px; font-weight: 800; letter-spacing: -.6px; }
 .phone-price::before { content: "$"; margin-right: 2px; font-size: 14px; vertical-align: 2px; }
 .admin-cost { margin: 7px 0 0; padding-top: 7px; border-top: 1px solid var(--line); color: #765a36; font-size: 12px; font-weight: 600; }
