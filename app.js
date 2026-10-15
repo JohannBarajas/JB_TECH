@@ -54,6 +54,18 @@ const el = {
   savePhone: document.querySelector("#save-phone"),
   cancelDialog: document.querySelector("#cancel-dialog"),
   closeDialog: document.querySelector("#close-dialog"),
+  editPhotoText: document.querySelector("#edit-photo-text"),
+  textDialog: document.querySelector("#text-dialog"),
+  closeText: document.querySelector("#close-text"),
+  textStage: document.querySelector("#text-stage"),
+  textImage: document.querySelector("#text-image"),
+  textPreview: document.querySelector("#text-preview"),
+  overlayCopy: document.querySelector("#overlay-copy"),
+  overlaySize: document.querySelector("#overlay-size"),
+  overlaySizeValue: document.querySelector("#overlay-size-value"),
+  overlayColor: document.querySelector("#overlay-color"),
+  removePhotoText: document.querySelector("#remove-photo-text"),
+  applyPhotoText: document.querySelector("#apply-photo-text"),
   cropDialog: document.querySelector("#crop-dialog"),
   cropCanvas: document.querySelector("#crop-canvas"),
   cropZoom: document.querySelector("#crop-zoom"),
@@ -71,6 +83,11 @@ let adminAuthorized = false;
 let phones = [];
 let editingPhone = null;
 let selectedPhoto = null;
+let photoText = null;
+let textDraft = null;
+let textEditorPosition = { x: 50, y: 50 };
+let textDrag = null;
+let textSourceUrl = null;
 let toastTimer;
 let previewUrl = null;
 let cropSourceUrl = null;
@@ -85,6 +102,22 @@ let cropDrag = null;
 function showMessage(element, message, isError = true) {
   element.textContent = message;
   element.classList.toggle("success-message", !isError && Boolean(message));
+}
+
+function normalizePhotoText(value) {
+  if (!value || typeof value !== "object" || typeof value.text !== "string" || !value.text.trim()) return null;
+  const color = typeof value.color === "string" && /^#[0-9a-f]{6}$/i.test(value.color) ? value.color : "#ffffff";
+  const boundedNumber = (number, min, max, fallback) => {
+    const parsed = Number(number);
+    return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
+  };
+  return {
+    text: value.text.slice(0, 100),
+    x: boundedNumber(value.x, 0, 100, 50),
+    y: boundedNumber(value.y, 0, 100, 50),
+    size: boundedNumber(value.size, 16, 72, 32),
+    color
+  };
 }
 
 function showToast(message) {
@@ -183,7 +216,7 @@ async function loadPhones() {
 
   const [{ data, error }, { data: settings, error: settingsError }] = await Promise.all([
     client.from("catalog_phones")
-      .select("id, name, price, currency, image_path, created_at")
+      .select("id, name, price, currency, image_path, image_text, created_at")
       .order("created_at", { ascending: false }),
     client.from("catalog_settings")
       .select("initialized")
@@ -221,6 +254,7 @@ async function loadPhones() {
       ...phone,
       cost: costs.get(phone.id)?.cost ?? null,
       distributor: costs.get(phone.id)?.distributor ?? null,
+      imageText: normalizePhotoText(phone.image_text),
       imageUrl: client.storage.from(STORAGE_BUCKET).getPublicUrl(phone.image_path).data.publicUrl
     }));
   renderPhones();
@@ -314,6 +348,7 @@ function renderPhones() {
     <article class="phone-card">
       <div class="phone-image-wrap static-image-wrap">
         <img class="phone-image static-photo" src="${escapeHtml(phone.imageUrl)}" alt="${escapeHtml(phone.name)}" loading="lazy">
+        ${phone.imageText ? `<span class="phone-image-text" style="left:${phone.imageText.x}%;top:${phone.imageText.y}%;--overlay-size:${phone.imageText.size / 4};--overlay-color:${phone.imageText.color}">${escapeHtml(phone.imageText.text)}</span>` : ""}
         <span class="photo-price-tag${phone.price === null || phone.price === undefined ? " price-pending" : ""}">${escapeHtml(formatPrice(phone.price, phone.currency || phone.currencyNote))}</span>
         ${adminAuthorized ? `<div class="card-actions">
           <button class="icon-button" type="button" data-edit="${escapeHtml(phone.id)}" aria-label="Editar ${escapeHtml(phone.name)}">✎</button>
@@ -352,6 +387,8 @@ function openPhoneDialog(phone = null) {
   el.price.value = phone?.price ?? "";
   el.cost.value = phone?.cost ?? "";
   el.distributor.value = phone?.distributor ?? "";
+  photoText = phone?.imageText ? { ...phone.imageText } : null;
+  el.editPhotoText.textContent = photoText ? "Editar texto sobre la foto" : "Escribir sobre la foto";
   if (phone) {
     el.photoPreview.src = phone.imageUrl;
     el.photoPreview.hidden = false;
@@ -404,6 +441,7 @@ async function savePhone(event) {
     const cost = costValue === "" ? null : Number(costValue);
     const distributorValue = el.distributor.value.trim();
     const distributor = distributorValue === "" ? null : distributorValue;
+    const imageText = normalizePhotoText(photoText);
     if (!name) throw new Error("Escribe la marca y el modelo del celular.");
     if (price !== null && (!Number.isFinite(price) || price < 0)) throw new Error("Escribe un precio válido.");
     if (cost !== null && (!Number.isFinite(cost) || cost < 0)) throw new Error("Escribe un costo válido.");
@@ -414,7 +452,8 @@ async function savePhone(event) {
     const values = {
       name,
       price,
-      image_path: newPath || editingPhone.image_path
+      image_path: newPath || editingPhone.image_path,
+      image_text: imageText
     };
     const result = wasEditing
       ? await client.from("catalog_phones").update(values).eq("id", editingPhone.id).select("id").single()
@@ -520,8 +559,93 @@ el.addPhone.addEventListener("click", () => openPhoneDialog());
 el.empty.querySelector("[data-open-form]").addEventListener("click", () => openPhoneDialog());
 el.cancelDialog.addEventListener("click", closePhoneDialog);
 el.closeDialog.addEventListener("click", closePhoneDialog);
+el.editPhotoText.addEventListener("click", () => {
+  openPhotoTextEditor().catch(error => showMessage(el.formFeedback, error.message));
+});
 el.phoneForm.addEventListener("submit", savePhone);
 el.search.addEventListener("input", renderPhones);
+
+async function openPhotoTextEditor() {
+  if (!adminAuthorized) return;
+  const source = selectedPhoto || editingPhone?.imageUrl;
+  if (!source) {
+    showMessage(el.formFeedback, "Primero selecciona una foto para agregarle texto.");
+    return;
+  }
+  if (textSourceUrl) URL.revokeObjectURL(textSourceUrl);
+  textSourceUrl = source instanceof Blob ? URL.createObjectURL(source) : source;
+  el.textImage.src = textSourceUrl;
+  await el.textImage.decode();
+  textDraft = photoText ? { ...photoText } : null;
+  textEditorPosition = textDraft ? { x: textDraft.x, y: textDraft.y } : { x: 50, y: 50 };
+  el.overlayCopy.value = textDraft?.text ?? "";
+  el.overlaySize.value = String(textDraft?.size ?? 32);
+  el.overlayColor.value = textDraft?.color ?? "#ffffff";
+  renderTextDraft();
+  el.textDialog.showModal();
+}
+
+function renderTextDraft() {
+  const text = el.overlayCopy.value.trim();
+  el.overlaySizeValue.textContent = `${el.overlaySize.value}px`;
+  el.textPreview.textContent = text;
+  el.textPreview.hidden = !text;
+  el.textPreview.style.left = `${textEditorPosition.x}%`;
+  el.textPreview.style.top = `${textEditorPosition.y}%`;
+  el.textPreview.style.setProperty("--overlay-size", String(Number(el.overlaySize.value) / 4));
+  el.textPreview.style.setProperty("--overlay-color", el.overlayColor.value);
+}
+
+function closePhotoTextEditor() {
+  el.textDialog.close();
+}
+
+el.overlayCopy.addEventListener("input", renderTextDraft);
+el.overlaySize.addEventListener("input", renderTextDraft);
+el.overlayColor.addEventListener("input", renderTextDraft);
+el.applyPhotoText.addEventListener("click", () => {
+  const text = el.overlayCopy.value.trim();
+  photoText = text ? normalizePhotoText({
+    text,
+    ...textEditorPosition,
+    size: Number(el.overlaySize.value),
+    color: el.overlayColor.value
+  }) : null;
+  el.editPhotoText.textContent = photoText ? "Editar texto sobre la foto" : "Escribir sobre la foto";
+  closePhotoTextEditor();
+});
+el.removePhotoText.addEventListener("click", () => {
+  photoText = null;
+  el.editPhotoText.textContent = "Escribir sobre la foto";
+  closePhotoTextEditor();
+});
+el.closeText.addEventListener("click", closePhotoTextEditor);
+el.textDialog.addEventListener("click", event => {
+  if (event.target === el.textDialog) closePhotoTextEditor();
+});
+el.textDialog.addEventListener("close", () => {
+  if (textSourceUrl?.startsWith("blob:")) URL.revokeObjectURL(textSourceUrl);
+  textSourceUrl = null;
+  el.textImage.removeAttribute("src");
+  textDraft = null;
+});
+el.textPreview.addEventListener("pointerdown", event => {
+  const bounds = el.textStage.getBoundingClientRect();
+  textDrag = { pointerId: event.pointerId, bounds };
+  el.textPreview.setPointerCapture(event.pointerId);
+});
+el.textPreview.addEventListener("pointermove", event => {
+  if (!textDrag || textDrag.pointerId !== event.pointerId) return;
+  textEditorPosition = {
+    x: Math.min(98, Math.max(2, (event.clientX - textDrag.bounds.left) / textDrag.bounds.width * 100)),
+    y: Math.min(98, Math.max(2, (event.clientY - textDrag.bounds.top) / textDrag.bounds.height * 100))
+  };
+  renderTextDraft();
+});
+el.textPreview.addEventListener("pointerup", event => {
+  if (textDrag?.pointerId === event.pointerId) textDrag = null;
+});
+el.textPreview.addEventListener("pointercancel", () => { textDrag = null; });
 
 el.photo.addEventListener("change", () => {
   const file = el.photo.files?.[0];

@@ -22,6 +22,8 @@ create table if not exists public.catalog_phones (
 );
 
 alter table public.catalog_phones enable row level security;
+alter table public.catalog_phones
+  add column if not exists image_text jsonb;
 grant select on public.catalog_phones to anon, authenticated;
 grant insert, update, delete on public.catalog_phones to authenticated;
 

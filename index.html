@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=5">
+  <link rel="stylesheet" href="styles.css?v=6">
 </head>
 <body>
   <main id="app" class="app-shell">
@@ -111,6 +111,7 @@
           </span>
         </label>
         <input id="phone-photo" class="visually-hidden" name="photo" type="file" accept="image/jpeg,image/png,image/webp">
+        <button id="edit-photo-text" class="button button-quiet photo-text-button" type="button">Escribir sobre la foto</button>
         <p id="form-feedback" class="feedback" role="status" aria-live="polite"></p>
         <div class="dialog-actions">
           <button id="cancel-dialog" class="button button-quiet" type="button">Cancelar</button>
@@ -143,9 +144,37 @@
         </div>
       </section>
     </dialog>
+    <dialog id="text-dialog" class="crop-dialog text-dialog">
+      <section class="crop-content" aria-labelledby="text-title">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">PERSONALIZA TU FOTO</p>
+            <h2 id="text-title">Escribe sobre la foto</h2>
+          </div>
+          <button id="close-text" class="close-button" type="button" aria-label="Cerrar">×</button>
+        </div>
+        <p class="crop-hint">Arrastra el texto para colocarlo donde quieras. Se verá en la galería.</p>
+        <div id="text-stage" class="text-stage">
+          <img id="text-image" alt="Vista previa de la foto">
+          <span id="text-preview" class="text-preview"></span>
+        </div>
+        <label class="text-control-label" for="overlay-copy">Texto</label>
+        <textarea id="overlay-copy" class="overlay-copy" maxlength="100" rows="2" placeholder="Ej. Precio especial $599"></textarea>
+        <div class="text-style-controls">
+          <label class="text-control-label" for="overlay-size">Tamaño <span id="overlay-size-value"></span></label>
+          <input id="overlay-size" type="range" min="16" max="72" step="1" value="32">
+          <label class="text-control-label color-control" for="overlay-color">Color</label>
+          <input id="overlay-color" class="overlay-color" type="color" value="#ffffff" aria-label="Color del texto">
+        </div>
+        <div class="crop-actions text-actions">
+          <button id="remove-photo-text" class="button button-quiet" type="button">Quitar texto</button>
+          <button id="apply-photo-text" class="button button-primary" type="button">Usar este texto</button>
+        </div>
+      </section>
+    </dialog>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=5"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
