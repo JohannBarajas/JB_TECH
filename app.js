@@ -3,6 +3,18 @@ const SUPABASE_URL = "PEGA_AQUI_LA_URL_DE_TU_PROYECTO";
 const SUPABASE_ANON_KEY = "PEGA_AQUI_TU_CLAVE_ANON";
 const STORAGE_BUCKET = "phones-images";
 const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
+const STARTER_CATALOG = [
+  { id: "static-01", name: "iPhone 16 Plus · 256 GB", price: "600", imageUrl: "catalogo/celular-01.jpeg" },
+  { id: "static-02", name: "iPhone 17 · 512 GB", price: "700", imageUrl: "catalogo/celular-02.jpeg" },
+  { id: "static-03", name: "Samsung Galaxy S26 Ultra · 256 GB", price: "1,999.99", imageUrl: "catalogo/celular-03.jpeg" },
+  { id: "static-04", name: "iPhone · modelo por confirmar", price: null, imageUrl: "catalogo/celular-04.jpeg" },
+  { id: "static-05", name: "iPhone 17 Pro · 256 GB", price: "900", imageUrl: "catalogo/celular-05.jpeg" },
+  { id: "static-06", name: "Samsung Galaxy S26 Ultra · 256 GB", price: "1,999.99", imageUrl: "catalogo/celular-06.jpeg" },
+  { id: "static-07", name: "iPhone 18 Pro Max · 512 GB", price: "1,650", imageUrl: "catalogo/celular-07.jpeg", currencyNote: "USD" },
+  { id: "static-08", name: "Varios celulares · modelo por confirmar", price: null, imageUrl: "catalogo/celular-08.jpeg" },
+  { id: "static-09", name: "Celular en caja · modelo por confirmar", price: "1,559.99", imageUrl: "catalogo/celular-09.jpeg" },
+  { id: "static-10", name: "iPhone · modelo por confirmar", price: "899.99", imageUrl: "catalogo/celular-10.jpeg" }
+];
 
 const configured = SUPABASE_URL.startsWith("https://")
   && !SUPABASE_URL.includes("PEGA_AQUI")
@@ -182,6 +194,39 @@ function renderPhones() {
   `).join("");
 }
 
+function renderStarterCatalog() {
+  phones = STARTER_CATALOG;
+  el.userEmail.hidden = true;
+  el.signOut.hidden = true;
+  el.addPhone.hidden = true;
+  el.empty.hidden = true;
+  el.count.textContent = `${phones.length} fotos`;
+  renderStaticPhones();
+}
+
+function renderStaticPhones() {
+  const query = el.search.value.trim().toLocaleLowerCase("es");
+  const filtered = phones.filter(phone => phone.name.toLocaleLowerCase("es").includes(query));
+  el.count.textContent = `${phones.length} ${phones.length === 1 ? "foto" : "fotos"}`;
+
+  if (filtered.length === 0) {
+    el.grid.innerHTML = '<p class="loading-message">No encontramos celulares con ese nombre.</p>';
+    return;
+  }
+
+  el.grid.innerHTML = filtered.map(phone => `
+    <article class="phone-card">
+      <div class="phone-image-wrap static-image-wrap">
+        <img class="phone-image static-photo" src="${escapeHtml(phone.imageUrl)}" alt="${escapeHtml(phone.name)}" loading="lazy">
+        <span class="photo-price-tag${phone.price ? "" : " price-pending"}">${phone.price ? `$${escapeHtml(phone.price)}${phone.currencyNote ? ` ${escapeHtml(phone.currencyNote)}` : ""}` : "Precio pendiente"}</span>
+      </div>
+      <div class="phone-details">
+        <h2 class="phone-name" title="${escapeHtml(phone.name)}">${escapeHtml(phone.name)}</h2>
+      </div>
+    </article>
+  `).join("");
+}
+
 function resetPhotoPreview() {
   el.photoPreview.removeAttribute("src");
   el.photoPreview.hidden = true;
@@ -339,7 +384,7 @@ el.empty.querySelector("[data-open-form]").addEventListener("click", () => openP
 el.cancelDialog.addEventListener("click", closePhoneDialog);
 el.closeDialog.addEventListener("click", closePhoneDialog);
 el.phoneForm.addEventListener("submit", savePhone);
-el.search.addEventListener("input", renderPhones);
+el.search.addEventListener("input", () => configured ? renderPhones() : renderStaticPhones());
 
 el.photo.addEventListener("change", () => {
   const file = el.photo.files?.[0];
@@ -370,7 +415,8 @@ el.grid.addEventListener("click", event => {
 });
 
 if (!configured || !window.supabase) {
-  showScreen("setup");
+  showScreen("gallery");
+  renderStarterCatalog();
 } else {
   client.auth.onAuthStateChange((_event, session) => {
     window.setTimeout(() => updateSession(session), 0);
