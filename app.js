@@ -704,11 +704,25 @@ function getCropGeometry() {
   const rotatedWidth = width * absoluteCos + height * absoluteSin;
   const rotatedHeight = width * absoluteSin + height * absoluteCos;
   const canvas = el.cropCanvas;
-  const scale = Math.max(canvas.width / rotatedWidth, canvas.height / rotatedHeight) * cropZoom;
-  const limitX = Math.max(0, (rotatedWidth * scale - canvas.width) / 2);
-  const limitY = Math.max(0, (rotatedHeight * scale - canvas.height) / 2);
-  cropPanX = Math.min(limitX, Math.max(-limitX, cropPanX));
-  cropPanY = Math.min(limitY, Math.max(-limitY, cropPanY));
+  const fitScale = Math.max(canvas.width / rotatedWidth, canvas.height / rotatedHeight);
+  const minimumZoom = Math.max(
+    cropRect.width / (rotatedWidth * fitScale),
+    cropRect.height / (rotatedHeight * fitScale)
+  );
+  const maxZoom = Math.max(4, minimumZoom);
+  el.cropZoom.min = String(minimumZoom);
+  el.cropZoom.max = String(maxZoom);
+  cropZoom = Math.min(maxZoom, Math.max(minimumZoom, cropZoom));
+  el.cropZoom.value = String(cropZoom);
+  const scale = fitScale * cropZoom;
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  const minPanX = cropRect.x + cropRect.width - centerX - rotatedWidth * scale / 2;
+  const maxPanX = cropRect.x - centerX + rotatedWidth * scale / 2;
+  const minPanY = cropRect.y + cropRect.height - centerY - rotatedHeight * scale / 2;
+  const maxPanY = cropRect.y - centerY + rotatedHeight * scale / 2;
+  cropPanX = Math.min(maxPanX, Math.max(minPanX, cropPanX));
+  cropPanY = Math.min(maxPanY, Math.max(minPanY, cropPanY));
   return { scale, canvas };
 }
 
