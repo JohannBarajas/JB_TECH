@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=7">
+  <link rel="stylesheet" href="styles.css?v=8">
 </head>
 <body>
   <main id="app" class="app-shell">
@@ -129,9 +129,15 @@
           </div>
           <button id="close-crop" class="close-button" type="button" aria-label="Cerrar">×</button>
         </div>
-        <p class="crop-hint">Arrastra la imagen para acomodarla en el marco.</p>
-        <div class="crop-stage">
+        <p class="crop-hint">Arrastra la foto para acomodarla. Mueve el borde del marco y sus esquinas para elegir el recorte.</p>
+        <div id="crop-stage" class="crop-stage">
           <canvas id="crop-canvas" width="400" height="500" aria-label="Vista de recorte de la foto"></canvas>
+          <div id="crop-selection" class="crop-selection" aria-label="Marco de recorte">
+            <button class="crop-handle crop-handle-nw" type="button" data-crop-handle="nw" aria-label="Cambiar borde superior izquierdo"></button>
+            <button class="crop-handle crop-handle-ne" type="button" data-crop-handle="ne" aria-label="Cambiar borde superior derecho"></button>
+            <button class="crop-handle crop-handle-sw" type="button" data-crop-handle="sw" aria-label="Cambiar borde inferior izquierdo"></button>
+            <button class="crop-handle crop-handle-se" type="button" data-crop-handle="se" aria-label="Cambiar borde inferior derecho"></button>
+          </div>
         </div>
         <label class="zoom-control" for="crop-zoom">
           <span>Alejar</span>
@@ -176,6 +182,6 @@
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>

@@ -71,6 +71,8 @@ const el = {
   cropCanvas: document.querySelector("#crop-canvas"),
   cropZoom: document.querySelector("#crop-zoom"),
   closeCrop: document.querySelector("#close-crop"),
+  cropStage: document.querySelector("#crop-stage"),
+  cropSelection: document.querySelector("#crop-selection"),
   rotateLeft: document.querySelector("#rotate-left"),
   rotateRight: document.querySelector("#rotate-right"),
   applyCrop: document.querySelector("#apply-crop"),
@@ -99,6 +101,7 @@ let cropZoom = 1;
 let cropPanX = 0;
 let cropPanY = 0;
 let cropDrag = null;
+let cropRect = { x: 40, y: 50, width: 320, height: 400 };
 
 function showMessage(element, message, isError = true) {
   element.textContent = message;
@@ -720,6 +723,10 @@ function drawCropPreview() {
   context.scale(scale, scale);
   context.drawImage(cropImage, -cropImage.naturalWidth / 2, -cropImage.naturalHeight / 2);
   context.restore();
+  el.cropSelection.style.left = `${cropRect.x / canvas.width * 100}%`;
+  el.cropSelection.style.top = `${cropRect.y / canvas.height * 100}%`;
+  el.cropSelection.style.width = `${cropRect.width / canvas.width * 100}%`;
+  el.cropSelection.style.height = `${cropRect.height / canvas.height * 100}%`;
 }
 
 async function openCropEditor(file) {
@@ -728,6 +735,7 @@ async function openCropEditor(file) {
   cropZoom = 1;
   cropPanX = 0;
   cropPanY = 0;
+  cropRect = { x: 40, y: 50, width: 320, height: 400 };
   el.cropZoom.value = "1";
   if (cropSourceUrl) URL.revokeObjectURL(cropSourceUrl);
   cropSourceUrl = URL.createObjectURL(file);
@@ -759,7 +767,17 @@ function rotateCrop(degrees) {
 
 function applyCrop() {
   if (!cropImage || !cropSourceFile) return;
-  el.cropCanvas.toBlob(blob => {
+  const { scale } = getCropGeometry();
+  const output = document.createElement("canvas");
+  output.width = Math.max(1, Math.round(cropRect.width / scale));
+  output.height = Math.max(1, Math.round(cropRect.height / scale));
+  const context = output.getContext("2d");
+  context.setTransform(1 / scale, 0, 0, 1 / scale, -cropRect.x / scale, -cropRect.y / scale);
+  context.translate(el.cropCanvas.width / 2 + cropPanX, el.cropCanvas.height / 2 + cropPanY);
+  context.rotate(cropRotation * Math.PI / 180);
+  context.scale(scale, scale);
+  context.drawImage(cropImage, -cropImage.naturalWidth / 2, -cropImage.naturalHeight / 2);
+  output.toBlob(blob => {
     if (!blob) {
       showMessage(el.formFeedback, "No se pudo procesar el recorte de la foto.");
       return;
@@ -794,6 +812,7 @@ el.cropCanvas.addEventListener("pointerdown", event => {
   if (!cropImage) return;
   const bounds = el.cropCanvas.getBoundingClientRect();
   cropDrag = {
+    mode: "image",
     pointerId: event.pointerId,
     x: event.clientX,
     y: event.clientY,
@@ -803,7 +822,7 @@ el.cropCanvas.addEventListener("pointerdown", event => {
   el.cropCanvas.setPointerCapture(event.pointerId);
 });
 el.cropCanvas.addEventListener("pointermove", event => {
-  if (!cropDrag || cropDrag.pointerId !== event.pointerId) return;
+  if (!cropDrag || cropDrag.pointerId !== event.pointerId || cropDrag.mode !== "image") return;
   cropPanX += (event.clientX - cropDrag.x) * cropDrag.scaleX;
   cropPanY += (event.clientY - cropDrag.y) * cropDrag.scaleY;
   cropDrag.x = event.clientX;
@@ -814,6 +833,67 @@ el.cropCanvas.addEventListener("pointerup", event => {
   if (cropDrag?.pointerId === event.pointerId) cropDrag = null;
 });
 el.cropCanvas.addEventListener("pointercancel", () => { cropDrag = null; });
+el.cropSelection.addEventListener("pointerdown", event => {
+  if (!cropImage) return;
+  event.preventDefault();
+  const bounds = el.cropCanvas.getBoundingClientRect();
+  const scaleX = el.cropCanvas.width / bounds.width;
+  const scaleY = el.cropCanvas.height / bounds.height;
+  const localX = (event.clientX - bounds.left) * scaleX - cropRect.x;
+  const localY = (event.clientY - bounds.top) * scaleY - cropRect.y;
+  const edge = 24;
+  const handle = event.target.closest("[data-crop-handle]")?.dataset.cropHandle;
+  const nearEdge = localX < edge || localY < edge || cropRect.width - localX < edge || cropRect.height - localY < edge;
+  cropDrag = {
+    mode: handle ? "resize-selection" : nearEdge ? "move-selection" : "image",
+    handle,
+    pointerId: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    scaleX,
+    scaleY,
+    startRect: { ...cropRect }
+  };
+  el.cropSelection.setPointerCapture(event.pointerId);
+});
+el.cropSelection.addEventListener("pointermove", event => {
+  if (!cropDrag || cropDrag.pointerId !== event.pointerId) return;
+  if (cropDrag.mode === "image") {
+    cropPanX += (event.clientX - cropDrag.x) * cropDrag.scaleX;
+    cropPanY += (event.clientY - cropDrag.y) * cropDrag.scaleY;
+    cropDrag.x = event.clientX;
+    cropDrag.y = event.clientY;
+    drawCropPreview();
+    return;
+  }
+  const dx = (event.clientX - cropDrag.x) * cropDrag.scaleX;
+  const dy = (event.clientY - cropDrag.y) * cropDrag.scaleY;
+  const start = cropDrag.startRect;
+  const minSize = 60;
+  if (cropDrag.mode === "move-selection") {
+    cropRect = {
+      ...start,
+      x: Math.min(el.cropCanvas.width - start.width, Math.max(0, start.x + dx)),
+      y: Math.min(el.cropCanvas.height - start.height, Math.max(0, start.y + dy))
+    };
+  } else {
+    const handle = cropDrag.handle;
+    let left = start.x;
+    let right = start.x + start.width;
+    let top = start.y;
+    let bottom = start.y + start.height;
+    if (handle.includes("w")) left = Math.max(0, Math.min(right - minSize, start.x + dx));
+    if (handle.includes("e")) right = Math.min(el.cropCanvas.width, Math.max(left + minSize, start.x + start.width + dx));
+    if (handle.includes("n")) top = Math.max(0, Math.min(bottom - minSize, start.y + dy));
+    if (handle.includes("s")) bottom = Math.min(el.cropCanvas.height, Math.max(top + minSize, start.y + start.height + dy));
+    cropRect = { x: left, y: top, width: right - left, height: bottom - top };
+  }
+  drawCropPreview();
+});
+el.cropSelection.addEventListener("pointerup", event => {
+  if (cropDrag?.pointerId === event.pointerId) cropDrag = null;
+});
+el.cropSelection.addEventListener("pointercancel", () => { cropDrag = null; });
 
 el.grid.addEventListener("click", event => {
   const editButton = event.target.closest("[data-edit]");
