@@ -54,6 +54,7 @@ const el = {
   savePhone: document.querySelector("#save-phone"),
   cancelDialog: document.querySelector("#cancel-dialog"),
   closeDialog: document.querySelector("#close-dialog"),
+  cropCurrentPhoto: document.querySelector("#crop-current-photo"),
   editPhotoText: document.querySelector("#edit-photo-text"),
   textDialog: document.querySelector("#text-dialog"),
   closeText: document.querySelector("#close-text"),
@@ -383,6 +384,7 @@ function openPhoneDialog(phone = null) {
   el.dialogTitle.textContent = phone ? "Editar celular" : "Agregar celular";
   el.savePhone.textContent = phone ? "Guardar cambios" : "Guardar celular";
   el.photoOptional.textContent = phone ? "· opcional si solo cambiarás el precio o nombre" : "";
+  el.cropCurrentPhoto.hidden = !phone;
   el.name.value = phone ? phone.name : "";
   el.price.value = phone?.price ?? "";
   el.cost.value = phone?.cost ?? "";
@@ -559,6 +561,30 @@ el.addPhone.addEventListener("click", () => openPhoneDialog());
 el.empty.querySelector("[data-open-form]").addEventListener("click", () => openPhoneDialog());
 el.cancelDialog.addEventListener("click", closePhoneDialog);
 el.closeDialog.addEventListener("click", closePhoneDialog);
+el.cropCurrentPhoto.addEventListener("click", async () => {
+  if (!adminAuthorized || !editingPhone) return;
+  el.cropCurrentPhoto.disabled = true;
+  const originalLabel = el.cropCurrentPhoto.textContent;
+  el.cropCurrentPhoto.textContent = "Abriendo foto...";
+  try {
+    let file = selectedPhoto;
+    if (!file) {
+      const response = await fetch(editingPhone.imageUrl);
+      if (!response.ok) throw new Error(`No se pudo cargar la foto actual (${response.status}).`);
+      const blob = await response.blob();
+      const extension = photoExtension(blob);
+      if (!extension) throw new Error("La foto actual no está en formato JPG, PNG o WEBP.");
+      if (blob.size > MAX_PHOTO_SIZE) throw new Error("La foto actual pesa más de 10 MB y no se puede recortar aquí.");
+      file = new File([blob], `${editingPhone.name}-recortada.${extension}`, { type: blob.type });
+    }
+    await openCropEditor(file);
+  } catch (error) {
+    showMessage(el.formFeedback, error.message);
+  } finally {
+    el.cropCurrentPhoto.disabled = false;
+    el.cropCurrentPhoto.textContent = originalLabel;
+  }
+});
 el.editPhotoText.addEventListener("click", () => {
   openPhotoTextEditor().catch(error => showMessage(el.formFeedback, error.message));
 });

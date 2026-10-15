@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=6">
+  <link rel="stylesheet" href="styles.css?v=7">
 </head>
 <body>
   <main id="app" class="app-shell">
@@ -111,6 +111,7 @@
           </span>
         </label>
         <input id="phone-photo" class="visually-hidden" name="photo" type="file" accept="image/jpeg,image/png,image/webp">
+        <button id="crop-current-photo" class="button button-quiet photo-text-button" type="button" hidden>Recortar foto actual</button>
         <button id="edit-photo-text" class="button button-quiet photo-text-button" type="button">Escribir sobre la foto</button>
         <p id="form-feedback" class="feedback" role="status" aria-live="polite"></p>
         <div class="dialog-actions">
@@ -175,6 +176,6 @@
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

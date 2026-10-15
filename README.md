@@ -29,6 +29,7 @@ El rol se asigna en la base de datos, no mediante un botón de registro público
 - Los botones de editar y eliminar aparecen al iniciar sesión como administrador.
 - El costo y el distribuidor se guardan en una tabla privada separada; la consulta pública del catálogo no puede leerlos.
 - En el editor puedes acercar o alejar, arrastrar, recortar y girar la foto antes de guardarla.
+- Al editar un celular existente, pulsa **Recortar foto actual** para abrir la foto que ya está en el catálogo; guarda los cambios para reemplazarla por el recorte.
 - Como administrador, pulsa **Escribir sobre la foto** para añadir texto, arrastrarlo, ajustar su tamaño o color y mostrarlo sobre la foto para todos.
 - Puedes dejar un precio vacío para que se muestre como pendiente.
 - Las fotos deben ser JPG, PNG o WEBP y pesar hasta 10 MB.
