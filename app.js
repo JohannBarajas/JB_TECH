@@ -96,6 +96,7 @@ let previewUrl = null;
 let cropSourceUrl = null;
 let cropSourceFile = null;
 let cropImage = null;
+let cropTargetPhone = null;
 let cropRotation = 0;
 let cropZoom = 1;
 let cropPanX = 0;
@@ -355,6 +356,7 @@ function renderPhones() {
         ${phone.imageText ? `<span class="phone-image-text" style="left:${phone.imageText.x}%;top:${phone.imageText.y}%;--overlay-size:${phone.imageText.size / 4};--overlay-color:${phone.imageText.color}">${escapeHtml(phone.imageText.text)}</span>` : ""}
         <span class="photo-price-tag${phone.price === null || phone.price === undefined ? " price-pending" : ""}">${escapeHtml(formatPrice(phone.price, phone.currency || phone.currencyNote))}</span>
         ${adminAuthorized ? `<div class="card-actions">
+          <button class="icon-button" type="button" data-crop="${escapeHtml(phone.id)}" aria-label="Recortar foto de ${escapeHtml(phone.name)}">✂</button>
           <button class="icon-button" type="button" data-edit="${escapeHtml(phone.id)}" aria-label="Editar ${escapeHtml(phone.name)}">✎</button>
           <button class="icon-button delete" type="button" data-delete="${escapeHtml(phone.id)}" aria-label="Eliminar ${escapeHtml(phone.name)}">×</button>
         </div>` : ""}
@@ -729,8 +731,9 @@ function drawCropPreview() {
   el.cropSelection.style.height = `${cropRect.height / canvas.height * 100}%`;
 }
 
-async function openCropEditor(file) {
+async function openCropEditor(file, phone = null) {
   cropSourceFile = file;
+  cropTargetPhone = phone;
   cropRotation = 0;
   cropZoom = 1;
   cropPanX = 0;
@@ -742,6 +745,11 @@ async function openCropEditor(file) {
   cropImage = new Image();
   cropImage.src = cropSourceUrl;
   await cropImage.decode();
+  const imageScale = Math.min(400 / cropImage.naturalWidth, 500 / cropImage.naturalHeight);
+  el.cropCanvas.width = Math.max(1, Math.round(cropImage.naturalWidth * imageScale));
+  el.cropCanvas.height = Math.max(1, Math.round(cropImage.naturalHeight * imageScale));
+  el.cropStage.style.aspectRatio = `${el.cropCanvas.width} / ${el.cropCanvas.height}`;
+  cropRect = { x: 0, y: 0, width: el.cropCanvas.width, height: el.cropCanvas.height };
   drawCropPreview();
   el.cropDialog.showModal();
 }
@@ -755,6 +763,7 @@ el.cropDialog.addEventListener("close", () => {
   cropSourceUrl = null;
   cropSourceFile = null;
   cropImage = null;
+  cropTargetPhone = null;
   cropDrag = null;
 });
 
@@ -767,6 +776,8 @@ function rotateCrop(degrees) {
 
 function applyCrop() {
   if (!cropImage || !cropSourceFile) return;
+  const targetPhone = cropTargetPhone;
+  const sourceFileName = cropSourceFile.name;
   const { scale } = getCropGeometry();
   const output = document.createElement("canvas");
   output.width = Math.max(1, Math.round(cropRect.width / scale));
@@ -779,14 +790,23 @@ function applyCrop() {
   context.drawImage(cropImage, -cropImage.naturalWidth / 2, -cropImage.naturalHeight / 2);
   output.toBlob(blob => {
     if (!blob) {
-      showMessage(el.formFeedback, "No se pudo procesar el recorte de la foto.");
+      showMessage(targetPhone ? el.galleryFeedback : el.formFeedback, "No se pudo procesar el recorte de la foto.");
       return;
     }
     if (blob.size > MAX_PHOTO_SIZE) {
-      showMessage(el.formFeedback, "La foto recortada pesa más de 10 MB.");
+      showMessage(targetPhone ? el.galleryFeedback : el.formFeedback, "La foto recortada pesa más de 10 MB.");
       return;
     }
-    selectedPhoto = new File([blob], `${cropSourceFile.name.replace(/\.[^.]+$/, "")}-recortada.jpg`, { type: "image/jpeg" });
+    const croppedFile = new File([blob], `${sourceFileName.replace(/\.[^.]+$/, "")}-recortada.jpg`, { type: "image/jpeg" });
+    if (targetPhone) {
+      saveDirectCrop(croppedFile, targetPhone).catch(error => {
+        showMessage(el.galleryFeedback, error.message);
+        el.applyCrop.disabled = false;
+        el.applyCrop.textContent = "Usar esta foto";
+      });
+      return;
+    }
+    selectedPhoto = croppedFile;
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     previewUrl = URL.createObjectURL(blob);
     el.photoPreview.src = previewUrl;
@@ -795,6 +815,39 @@ function applyCrop() {
     closeCropEditor();
     showMessage(el.formFeedback, "");
   }, "image/jpeg", 0.92);
+}
+
+async function saveDirectCrop(file, phone) {
+  el.applyCrop.disabled = true;
+  el.applyCrop.textContent = "Guardando foto...";
+  const newPath = await uploadPhoto(file);
+  const { error } = await client.from("catalog_phones")
+    .update({ image_path: newPath })
+    .eq("id", phone.id);
+  if (error) {
+    await removeUploadedPhotos([newPath]);
+    throw new Error(`No se pudo guardar el recorte: ${error.message}`);
+  }
+  closeCropEditor();
+  await loadPhones();
+  const { error: removeError } = await client.storage.from(STORAGE_BUCKET).remove([phone.image_path]);
+  if (removeError) showToast(`Recorte guardado; no se pudo borrar la foto anterior: ${removeError.message}`);
+  else showToast("Foto recortada y guardada.");
+}
+
+async function cropCatalogPhone(phone) {
+  if (!adminAuthorized || !phone) return;
+  try {
+    const response = await fetch(phone.imageUrl);
+    if (!response.ok) throw new Error(`No se pudo cargar la foto (${response.status}).`);
+    const blob = await response.blob();
+    const extension = photoExtension(blob);
+    if (!extension) throw new Error("La foto actual no está en formato JPG, PNG o WEBP.");
+    if (blob.size > MAX_PHOTO_SIZE) throw new Error("La foto actual pesa más de 10 MB y no se puede recortar aquí.");
+    await openCropEditor(new File([blob], `${phone.name}.${extension}`, { type: blob.type }), phone);
+  } catch (error) {
+    showMessage(el.galleryFeedback, error.message);
+  }
 }
 
 el.cropZoom.addEventListener("input", () => {
@@ -843,10 +896,14 @@ el.cropSelection.addEventListener("pointerdown", event => {
   const localY = (event.clientY - bounds.top) * scaleY - cropRect.y;
   const edge = 24;
   const handle = event.target.closest("[data-crop-handle]")?.dataset.cropHandle;
-  const nearEdge = localX < edge || localY < edge || cropRect.width - localX < edge || cropRect.height - localY < edge;
+  const nearWest = localX < edge;
+  const nearEast = cropRect.width - localX < edge;
+  const nearNorth = localY < edge;
+  const nearSouth = cropRect.height - localY < edge;
+  const edgeHandle = `${nearNorth ? "n" : nearSouth ? "s" : ""}${nearWest ? "w" : nearEast ? "e" : ""}`;
   cropDrag = {
-    mode: handle ? "resize-selection" : nearEdge ? "move-selection" : "image",
-    handle,
+    mode: handle || edgeHandle ? "resize-selection" : localX < edge * 2 || localY < edge * 2 || cropRect.width - localX < edge * 2 || cropRect.height - localY < edge * 2 ? "move-selection" : "image",
+    handle: handle || edgeHandle,
     pointerId: event.pointerId,
     x: event.clientX,
     y: event.clientY,
@@ -869,7 +926,7 @@ el.cropSelection.addEventListener("pointermove", event => {
   const dx = (event.clientX - cropDrag.x) * cropDrag.scaleX;
   const dy = (event.clientY - cropDrag.y) * cropDrag.scaleY;
   const start = cropDrag.startRect;
-  const minSize = 60;
+  const minSize = 30;
   if (cropDrag.mode === "move-selection") {
     cropRect = {
       ...start,
@@ -896,8 +953,13 @@ el.cropSelection.addEventListener("pointerup", event => {
 el.cropSelection.addEventListener("pointercancel", () => { cropDrag = null; });
 
 el.grid.addEventListener("click", event => {
+  const cropButton = event.target.closest("[data-crop]");
   const editButton = event.target.closest("[data-edit]");
   const deleteButton = event.target.closest("[data-delete]");
+  if (cropButton && adminAuthorized) {
+    const phone = phones.find(item => item.id === cropButton.dataset.crop);
+    if (phone) cropCatalogPhone(phone);
+  }
   if (editButton && adminAuthorized) {
     const phone = phones.find(item => item.id === editButton.dataset.edit);
     if (phone) openPhoneDialog(phone);

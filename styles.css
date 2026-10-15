@@ -175,10 +175,10 @@ h1, h2, p { margin-top: 0; }
 .crop-stage canvas:active { cursor: grabbing; }
 .crop-selection { position: absolute; left: 10%; top: 10%; width: 80%; height: 80%; border: 1px solid #fff; box-shadow: 0 0 0 999px rgb(0 0 0 / 48%); cursor: move; touch-action: none; }
 .crop-handle { position: absolute; z-index: 1; width: 22px; height: 22px; padding: 0; border: 2px solid #fff; border-radius: 50%; background: var(--green); box-shadow: 0 1px 5px rgb(0 0 0 / 45%); touch-action: none; }
-.crop-handle-nw { top: -11px; left: -11px; cursor: nwse-resize; }
-.crop-handle-ne { top: -11px; right: -11px; cursor: nesw-resize; }
-.crop-handle-sw { bottom: -11px; left: -11px; cursor: nesw-resize; }
-.crop-handle-se { right: -11px; bottom: -11px; cursor: nwse-resize; }
+.crop-handle-nw { top: 2px; left: 2px; cursor: nwse-resize; }
+.crop-handle-ne { top: 2px; right: 2px; cursor: nesw-resize; }
+.crop-handle-sw { bottom: 2px; left: 2px; cursor: nesw-resize; }
+.crop-handle-se { right: 2px; bottom: 2px; cursor: nwse-resize; }
 .zoom-control { width: min(100%, 360px); margin: 15px auto; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 11px; }
 .zoom-control input { flex: 1; accent-color: var(--green); }
 .crop-actions { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
