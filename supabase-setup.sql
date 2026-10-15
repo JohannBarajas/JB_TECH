@@ -24,6 +24,20 @@ create table if not exists public.catalog_phones (
 alter table public.catalog_phones enable row level security;
 alter table public.catalog_phones
   add column if not exists image_text jsonb;
+alter table public.catalog_phones
+  add column if not exists device_condition text;
+alter table public.catalog_phones
+  add column if not exists battery_percentage smallint;
+alter table public.catalog_phones
+  drop constraint if exists catalog_phones_device_condition_check,
+  add constraint catalog_phones_device_condition_check
+    check (device_condition is null or device_condition in ('new', 'used', 'na')),
+  drop constraint if exists catalog_phones_battery_percentage_check,
+  add constraint catalog_phones_battery_percentage_check
+    check (battery_percentage is null or battery_percentage between 0 and 100),
+  drop constraint if exists catalog_phones_used_battery_check,
+  add constraint catalog_phones_used_battery_check
+    check (device_condition = 'used' or battery_percentage is null);
 grant select on public.catalog_phones to anon, authenticated;
 grant insert, update, delete on public.catalog_phones to authenticated;
 

@@ -111,6 +111,7 @@ h1, h2, p { margin-top: 0; }
 .icon-button.delete:hover { color: #aa433c; }
 .phone-details { padding: 15px 15px 16px; }
 .phone-name { margin: 0 0 6px; overflow: hidden; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.phone-condition { margin: 0 0 8px; color: var(--muted); font-size: 11px; font-weight: 600; }
 .customer-actions { margin-top: 11px; display: flex; gap: 7px; }
 .customer-action { width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 50%; background: white; color: #4f5b50; text-decoration: none; }
 .customer-action svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
@@ -143,8 +144,8 @@ h1, h2, p { margin-top: 0; }
 .auth-card h1 { margin-bottom: 10px; font-size: 34px; letter-spacing: -1.7px; }
 .auth-copy { margin-bottom: 24px; color: var(--muted); font-size: 14px; line-height: 1.6; }
 .auth-card label, .phone-form > label:not(.upload-area) { margin: 15px 0 7px; display: block; color: #494f48; font-size: 12px; font-weight: 700; }
-.auth-card input, .phone-form > input:not(.visually-hidden), .price-input { width: 100%; height: 46px; padding: 0 13px; border: 1px solid var(--line); border-radius: 9px; outline: none; background: #fff; color: var(--ink); font-size: 14px; }
-.auth-card input:focus, .phone-form input:focus { border-color: #8ba895; box-shadow: 0 0 0 3px rgb(49 95 72 / 9%); }
+.auth-card input, .phone-form > input:not(.visually-hidden), .phone-form > select, .battery-field input, .price-input { width: 100%; height: 46px; padding: 0 13px; border: 1px solid var(--line); border-radius: 9px; outline: none; background: #fff; color: var(--ink); font-size: 14px; }
+.auth-card input:focus, .phone-form input:focus, .phone-form select:focus { border-color: #8ba895; box-shadow: 0 0 0 3px rgb(49 95 72 / 9%); }
 .button-wide { width: 100%; margin-top: 21px; }
 .text-button { width: 100%; padding: 8px 0 0; border: 0; background: transparent; color: var(--green); font-size: 12px; font-weight: 700; }
 .text-button:hover { text-decoration: underline; }
@@ -157,7 +158,9 @@ h1, h2, p { margin-top: 0; }
 .dialog-heading .eyebrow { margin-bottom: 6px; }
 .dialog-heading h2 { margin-bottom: 0; font-family: Manrope, sans-serif; font-size: 23px; letter-spacing: -.8px; }
 .close-button { width: 32px; height: 32px; border: 0; border-radius: 50%; background: #f2f2ee; color: var(--muted); font-size: 22px; line-height: 1; }
-.phone-form > input:not(.visually-hidden) { display: block; }
+.phone-form > input:not(.visually-hidden), .phone-form > select { display: block; }
+.battery-field { margin-top: 15px; }
+.battery-field label { margin: 0 0 7px; display: block; color: #494f48; font-size: 12px; font-weight: 700; }
 .price-input { display: flex; align-items: center; gap: 8px; }
 .price-input.cost-input { border-color: #e6dfd3; background: #fcfaf6; }
 .price-input span { color: var(--muted); }

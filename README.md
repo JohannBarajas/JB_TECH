@@ -8,7 +8,7 @@ Supabase protege la cuenta de administrador y guarda los cambios. Sin configurar
 
 1. Crea un proyecto en [Supabase](https://supabase.com/).
 2. En **Authentication → Users**, selecciona **Add user** y crea tu cuenta con tu correo y contraseña. Confirma la cuenta desde el panel.
-3. En **SQL Editor**, ejecuta todo el contenido actualizado de `supabase-setup.sql`. Si ya ejecutaste una versión anterior, vuelve a ejecutar el archivo completo para habilitar los datos nuevos de la galería.
+3. En **SQL Editor**, ejecuta todo el contenido actualizado de `supabase-setup.sql`. Si ya ejecutaste una versión anterior, vuelve a ejecutar el archivo completo para habilitar los datos nuevos de la galería, incluida la condición y batería.
 4. Todavía en **SQL Editor**, autoriza únicamente la cuenta que acabas de crear. Reemplaza el correo del ejemplo y ejecuta:
 
    ```sql
@@ -28,6 +28,7 @@ El rol se asigna en la base de datos, no mediante un botón de registro público
 
 - Los botones de editar y eliminar aparecen al iniciar sesión como administrador.
 - Los celulares se organizan automáticamente en secciones iPhone, Samsung y Otros celulares. Cada tarjeta pública tiene un icono de flecha para compartir un enlace directo y un icono de WhatsApp para preguntar por el celular.
+- Al agregar o editar un celular, puedes elegir la condición **Nuevo**, **Usado**, **En blanco** o **N/A**. Si eliges **Usado**, indica la salud de batería; la condición se muestra en la tarjeta pública, excepto **N/A** y **En blanco**.
 - El costo y el distribuidor se guardan en una tabla privada separada; la consulta pública del catálogo no puede leerlos.
 - La tienda o distribuidor indicado aparece debajo del costo en la vista de administrador para recordar dónde está cada celular.
 - En el editor puedes acercar o alejar, arrastrar la foto, girarla y mover o cambiar libremente el tamaño del marco de recorte antes de guardarla.

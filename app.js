@@ -47,6 +47,9 @@ const el = {
   price: document.querySelector("#phone-price"),
   cost: document.querySelector("#phone-cost"),
   distributor: document.querySelector("#phone-distributor"),
+  condition: document.querySelector("#phone-condition"),
+  battery: document.querySelector("#phone-battery"),
+  batteryField: document.querySelector("#used-battery-field"),
   photo: document.querySelector("#phone-photo"),
   photoOptional: document.querySelector("#photo-optional"),
   photoPreview: document.querySelector("#photo-preview"),
@@ -84,6 +87,7 @@ let currentSession = null;
 let previousSessionUserId = null;
 let sessionStateReady = false;
 let adminAuthorized = false;
+let conditionSchemaReady = true;
 let phones = [];
 let editingPhone = null;
 let selectedPhoto = null;
@@ -124,6 +128,12 @@ function normalizePhotoText(value) {
     size: boundedNumber(value.size, 16, 72, 32),
     color
   };
+}
+
+function isMissingConditionSchema(error) {
+  const message = error?.message || "";
+  return /(device_condition|battery_percentage)/i.test(message)
+    && /(does not exist|schema cache|could not find)/i.test(message);
 }
 
 function showToast(message) {
@@ -273,15 +283,31 @@ async function loadPhones() {
     return;
   }
 
-  const [{ data, error }, { data: settings, error: settingsError }] = await Promise.all([
+  const [catalogResult, { data: settings, error: settingsError }] = await Promise.all([
     client.from("catalog_phones")
-      .select("id, name, price, currency, image_path, image_text, created_at")
+      .select("id, name, price, currency, image_path, image_text, device_condition, battery_percentage, created_at")
       .order("created_at", { ascending: false }),
     client.from("catalog_settings")
       .select("initialized")
       .eq("singleton", true)
       .single()
   ]);
+  let { data, error } = catalogResult;
+  conditionSchemaReady = !error;
+  if (error && isMissingConditionSchema(error)) {
+    const fallback = await client.from("catalog_phones")
+      .select("id, name, price, currency, image_path, image_text, created_at")
+      .order("created_at", { ascending: false });
+    if (fallback.error) {
+      phones = [];
+      el.grid.replaceChildren();
+      showMessage(el.galleryFeedback, `No se pudo cargar el catálogo: ${fallback.error.message}`);
+      return;
+    }
+    data = fallback.data;
+    error = null;
+    conditionSchemaReady = false;
+  }
   if (error) {
     phones = [];
     el.grid.replaceChildren();
@@ -317,6 +343,9 @@ async function loadPhones() {
       imageUrl: client.storage.from(STORAGE_BUCKET).getPublicUrl(phone.image_path).data.publicUrl
     }));
   renderPhones();
+  if (!conditionSchemaReady) {
+    showMessage(el.galleryFeedback, "La galería está cargada, pero para guardar la condición y la batería ejecuta el SQL actualizado de supabase-setup.sql en Supabase.");
+  }
 }
 
 async function initializeCatalogIfNeeded() {
@@ -423,6 +452,7 @@ function renderPhones() {
       </div>
       <div class="phone-details">
         <h2 class="phone-name" title="${escapeHtml(phone.name)}">${escapeHtml(phone.name)}</h2>
+        ${phone.device_condition === "new" ? '<p class="phone-condition">Nuevo</p>' : phone.device_condition === "used" ? `<p class="phone-condition">Usado${Number.isInteger(Number(phone.battery_percentage)) && phone.battery_percentage !== null ? ` · Batería ${escapeHtml(phone.battery_percentage)}%` : ""}</p>` : ""}
         <div class="customer-actions">
           <button class="customer-action share-action" type="button" data-share="${escapeHtml(phone.id)}" aria-label="Compartir ${escapeHtml(phone.name)}" title="Compartir">
             <svg aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path d="M14 5l7 7-7 7M21 12H9a6 6 0 0 0-6 6v1"/></svg>
@@ -465,6 +495,11 @@ function openPhoneDialog(phone = null) {
   el.price.value = phone?.price ?? "";
   el.cost.value = phone?.cost ?? "";
   el.distributor.value = phone?.distributor ?? "";
+  el.condition.value = phone?.device_condition === "new" || phone?.device_condition === "used" || phone?.device_condition === "na"
+    ? phone.device_condition
+    : "";
+  el.battery.value = phone?.battery_percentage ?? "";
+  updateBatteryField();
   photoText = phone?.imageText ? { ...phone.imageText } : null;
   el.editPhotoText.textContent = photoText ? "Editar texto sobre la foto" : "Escribir sobre la foto";
   if (phone) {
@@ -480,6 +515,13 @@ function closePhoneDialog() {
   el.dialog.close();
   editingPhone = null;
   resetPhotoPreview();
+}
+
+function updateBatteryField() {
+  const isUsed = el.condition.value === "used";
+  el.batteryField.hidden = !isUsed;
+  el.battery.required = isUsed;
+  if (!isUsed) el.battery.value = "";
 }
 
 function photoExtension(file) {
@@ -519,11 +561,21 @@ async function savePhone(event) {
     const cost = costValue === "" ? null : Number(costValue);
     const distributorValue = el.distributor.value.trim();
     const distributor = distributorValue === "" ? null : distributorValue;
+    const deviceCondition = el.condition.value || null;
+    const batteryValue = el.battery.value.trim();
+    const batteryPercentage = deviceCondition === "used" && batteryValue !== "" ? Number(batteryValue) : null;
     const imageText = normalizePhotoText(photoText);
     if (!name) throw new Error("Escribe la marca y el modelo del celular.");
     if (price !== null && (!Number.isFinite(price) || price < 0)) throw new Error("Escribe un precio válido.");
     if (cost !== null && (!Number.isFinite(cost) || cost < 0)) throw new Error("Escribe un costo válido.");
     if (distributor && distributor.length > 100) throw new Error("El nombre de la tienda o distribuidor debe tener como máximo 100 caracteres.");
+    if (!["new", "used", "na", null].includes(deviceCondition)) throw new Error("Selecciona una condición válida.");
+    if (deviceCondition === "used" && (batteryPercentage === null || !Number.isInteger(batteryPercentage) || batteryPercentage < 0 || batteryPercentage > 100)) {
+      throw new Error("Indica la salud de batería como un porcentaje entre 0 y 100.");
+    }
+    if (!conditionSchemaReady && deviceCondition !== null) {
+      throw new Error("Para guardar la condición y la batería, primero ejecuta el SQL actualizado de supabase-setup.sql en Supabase.");
+    }
     if (!wasEditing && !selectedPhoto) throw new Error("Selecciona una foto del celular.");
 
     if (selectedPhoto) newPath = await uploadPhoto(selectedPhoto);
@@ -533,6 +585,10 @@ async function savePhone(event) {
       image_path: newPath || editingPhone.image_path,
       image_text: imageText
     };
+    if (conditionSchemaReady) {
+      values.device_condition = deviceCondition;
+      values.battery_percentage = batteryPercentage;
+    }
     const result = wasEditing
       ? await client.from("catalog_phones").update(values).eq("id", editingPhone.id).select("id").single()
       : await client.from("catalog_phones").insert(values).select("id").single();
@@ -665,6 +721,7 @@ el.editPhotoText.addEventListener("click", () => {
   openPhotoTextEditor().catch(error => showMessage(el.formFeedback, error.message));
 });
 el.phoneForm.addEventListener("submit", savePhone);
+el.condition.addEventListener("change", updateBatteryField);
 el.search.addEventListener("input", renderPhones);
 
 async function openPhotoTextEditor() {
