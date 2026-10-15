@@ -95,6 +95,9 @@ h1, h2, p { margin-top: 0; }
 .phone-grid { padding-bottom: 50px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
 .phone-card { overflow: hidden; border: 1px solid #eeede7; border-radius: 15px; background: var(--white); box-shadow: 0 4px 16px rgb(34 43 34 / 3%); transition: box-shadow .2s, transform .2s; }
 .phone-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
+.category-heading { grid-column: 1 / -1; margin: 25px 0 0; padding-bottom: 10px; border-bottom: 1px solid var(--line); color: var(--green); font-family: Manrope, sans-serif; font-size: 22px; letter-spacing: -.7px; }
+.category-heading:first-child { margin-top: 4px; }
+.phone-card-highlight { outline: 3px solid #91b89e; outline-offset: 3px; }
 .phone-image-wrap { position: relative; aspect-ratio: 1 / 1; overflow: hidden; background: #efeee9; container-type: inline-size; }
 .phone-image { width: 100%; height: 100%; display: block; object-fit: cover; }
 .phone-image-wrap.static-image-wrap { aspect-ratio: 4 / 5; background: #f0efe9; }
@@ -108,6 +111,10 @@ h1, h2, p { margin-top: 0; }
 .icon-button.delete:hover { color: #aa433c; }
 .phone-details { padding: 15px 15px 16px; }
 .phone-name { margin: 0 0 6px; overflow: hidden; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.customer-actions { margin-top: 11px; display: flex; flex-wrap: wrap; gap: 7px; }
+.customer-action { min-height: 34px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 8px; background: white; color: #4f5b50; font-size: 11px; font-weight: 700; text-decoration: none; }
+.customer-action:hover { border-color: #c7d6c8; background: #f7faf6; color: var(--green); }
+.whatsapp-action { border-color: #cce6d1; background: #f0faf2; color: #24733a; }
 .phone-price { margin: 0; color: var(--green); font-family: Manrope, sans-serif; font-size: 20px; font-weight: 800; letter-spacing: -.6px; }
 .phone-price::before { content: "$"; margin-right: 2px; font-size: 14px; vertical-align: 2px; }
 .admin-cost { margin: 7px 0 0; padding-top: 7px; border-top: 1px solid var(--line); color: #765a36; font-size: 12px; font-weight: 600; }

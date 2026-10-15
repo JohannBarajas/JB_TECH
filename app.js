@@ -2,6 +2,7 @@
 const SUPABASE_URL = "https://zrvzvoejrluygcwuopux.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Qrc5b8inuUjcnv-vElXCFA_mo2X3B1K";
 const STORAGE_BUCKET = "phones-images";
+const WHATSAPP_NUMBER = "17183149761";
 const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
 const STARTER_CATALOG = [
   { id: "static-01", name: "iPhone 16 Plus · 256 GB", price: "600", imageUrl: "catalogo/celular-01.jpeg" },
@@ -146,6 +147,59 @@ function formatPrice(value, currency = null) {
     maximumFractionDigits: 2
   });
   return `$${formatted}${currency ? ` ${currency}` : ""}`;
+}
+
+function phoneCategory(phone) {
+  const name = phone.name.toLocaleLowerCase("es");
+  if (name.includes("samsung") || name.includes("galaxy")) return "Samsung";
+  if (name.includes("iphone") || name.includes("apple")) return "iPhone";
+  return "Otros celulares";
+}
+
+function phoneShareUrl(phone) {
+  const url = new URL(window.location.pathname, window.location.origin);
+  url.searchParams.set("phone", phone.id);
+  return url.toString();
+}
+
+function focusPhoneFromLink() {
+  const phoneId = new URLSearchParams(window.location.search).get("phone");
+  if (!phoneId) return;
+  const card = document.getElementById(`phone-${phoneId}`);
+  if (!card) return;
+  window.setTimeout(() => {
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    card.classList.add("phone-card-highlight");
+    window.setTimeout(() => card.classList.remove("phone-card-highlight"), 2600);
+  }, 100);
+}
+
+async function sharePhone(phone) {
+  const url = phoneShareUrl(phone);
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: phone.name,
+        text: `${phone.name} · ${formatPrice(phone.price, phone.currency || phone.currencyNote)}`,
+        url
+      });
+      return;
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      showToast(`No se pudo abrir el menú para compartir: ${error.message}`);
+      return;
+    }
+  }
+  if (!navigator.clipboard?.writeText) {
+    showToast("Este navegador no permite copiar el enlace. Abre la página desde el menú de compartir.");
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast("Enlace del celular copiado.");
+  } catch (error) {
+    showToast(`No se pudo copiar el enlace: ${error.message}`);
+  }
 }
 
 async function restoreSession() {
@@ -349,8 +403,14 @@ function renderPhones() {
     return;
   }
 
-  el.grid.innerHTML = filtered.map(phone => `
-    <article class="phone-card">
+  const categories = ["iPhone", "Samsung", "Otros celulares"];
+  el.grid.innerHTML = categories.map(category => {
+    const categoryPhones = filtered.filter(phone => phoneCategory(phone) === category);
+    if (categoryPhones.length === 0) return "";
+    return `
+      <h2 class="category-heading">${category}</h2>
+      ${categoryPhones.map(phone => `
+    <article id="phone-${escapeHtml(phone.id)}" class="phone-card" tabindex="-1">
       <div class="phone-image-wrap static-image-wrap">
         <img class="phone-image static-photo" src="${escapeHtml(phone.imageUrl)}" alt="${escapeHtml(phone.name)}" loading="lazy">
         ${phone.imageText ? `<span class="phone-image-text" style="left:${phone.imageText.x}%;top:${phone.imageText.y}%;--overlay-size:${phone.imageText.size / 4};--overlay-color:${phone.imageText.color}">${escapeHtml(phone.imageText.text)}</span>` : ""}
@@ -363,11 +423,18 @@ function renderPhones() {
       </div>
       <div class="phone-details">
         <h2 class="phone-name" title="${escapeHtml(phone.name)}">${escapeHtml(phone.name)}</h2>
+        <div class="customer-actions">
+          <button class="customer-action share-action" type="button" data-share="${escapeHtml(phone.id)}">Compartir</button>
+          <a class="customer-action whatsapp-action" href="https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(`Hola, me interesa ${phone.name} (${formatPrice(phone.price, phone.currency || phone.currencyNote)}). ${phoneShareUrl(phone)}`)}" target="_blank" rel="noopener noreferrer">Consultar por WhatsApp</a>
+        </div>
         ${adminAuthorized ? `<p class="admin-cost">Costo: <strong>${escapeHtml(formatPrice(phone.cost))}</strong></p>` : ""}
         ${adminAuthorized && phone.distributor ? `<p class="admin-distributor">Tienda / distribuidor: <strong>${escapeHtml(phone.distributor)}</strong></p>` : ""}
       </div>
     </article>
-  `).join("");
+  `).join("")}
+    `;
+  }).join("");
+  focusPhoneFromLink();
 }
 
 function resetPhotoPreview() {
@@ -967,9 +1034,14 @@ el.cropSelection.addEventListener("pointerup", event => {
 el.cropSelection.addEventListener("pointercancel", () => { cropDrag = null; });
 
 el.grid.addEventListener("click", event => {
+  const shareButton = event.target.closest("[data-share]");
   const cropButton = event.target.closest("[data-crop]");
   const editButton = event.target.closest("[data-edit]");
   const deleteButton = event.target.closest("[data-delete]");
+  if (shareButton) {
+    const phone = phones.find(item => item.id === shareButton.dataset.share);
+    if (phone) sharePhone(phone);
+  }
   if (cropButton && adminAuthorized) {
     const phone = phones.find(item => item.id === cropButton.dataset.crop);
     if (phone) cropCatalogPhone(phone);

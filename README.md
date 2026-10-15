@@ -27,6 +27,7 @@ El rol se asigna en la base de datos, no mediante un botón de registro público
 ## Uso del catálogo
 
 - Los botones de editar y eliminar aparecen al iniciar sesión como administrador.
+- Los celulares se organizan automáticamente en secciones iPhone, Samsung y Otros celulares. Cada tarjeta pública permite compartir un enlace directo o preguntar por WhatsApp.
 - El costo y el distribuidor se guardan en una tabla privada separada; la consulta pública del catálogo no puede leerlos.
 - La tienda o distribuidor indicado aparece debajo del costo en la vista de administrador para recordar dónde está cada celular.
 - En el editor puedes acercar o alejar, arrastrar la foto, girarla y mover o cambiar libremente el tamaño del marco de recorte antes de guardarla.
