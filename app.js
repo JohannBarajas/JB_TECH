@@ -1,6 +1,6 @@
 // Add your Supabase project URL and anon key here. Setup instructions are in README.md.
-const SUPABASE_URL = "PEGA_AQUI_LA_URL_DE_TU_PROYECTO";
-const SUPABASE_ANON_KEY = "PEGA_AQUI_TU_CLAVE_ANON";
+const SUPABASE_URL = "https://zrvzvoejrluygcwuopux.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_Qrc5b8inuUjcnv-vElXCFA_mo2X3B1K";
 const STORAGE_BUCKET = "phones-images";
 const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
 const STARTER_CATALOG = [
