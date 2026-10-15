@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f6f2">
+  <title>Mi vitrina | Celulares</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="app" class="app-shell">
+    <section id="setup-message" class="setup-message" hidden>
+      <div class="setup-mark" aria-hidden="true">MV</div>
+      <p class="eyebrow">UN ESPACIO PARA TUS CELULARES</p>
+      <h1>Tu vitrina te espera</h1>
+      <p>Para empezar, conecta tu proyecto de Supabase siguiendo los pasos de <a href="README.md">la guía de configuración</a>.</p>
+    </section>
+
+    <section id="auth-screen" class="auth-screen" hidden>
+      <div class="auth-card">
+        <div class="brand-lockup">
+          <span class="brand-icon" aria-hidden="true">MV</span>
+          <span>mi vitrina</span>
+        </div>
+        <p class="eyebrow">TUS PRECIOS, A LA MANO</p>
+        <h1 id="auth-title">Entra a tu vitrina</h1>
+        <p class="auth-copy">Inicia sesión para consultar tus celulares desde cualquier dispositivo.</p>
+        <form id="auth-form">
+          <label for="auth-email">Correo electrónico</label>
+          <input id="auth-email" name="email" type="email" autocomplete="email" placeholder="tu@correo.com" required>
+          <label for="auth-password">Contraseña</label>
+          <input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="6" placeholder="Mínimo 6 caracteres" required>
+          <button id="auth-submit" class="button button-primary button-wide" type="submit">Iniciar sesión</button>
+        </form>
+        <p id="auth-feedback" class="feedback" role="status" aria-live="polite"></p>
+        <button id="toggle-auth-mode" class="text-button" type="button">¿Es tu primera vez? Crea tu cuenta</button>
+      </div>
+    </section>
+
+    <section id="gallery-screen" hidden>
+      <header class="topbar">
+        <a class="brand-lockup" href="#" aria-label="Mi vitrina, inicio">
+          <span class="brand-icon" aria-hidden="true">MV</span>
+          <span>mi vitrina</span>
+        </a>
+        <div class="topbar-actions">
+          <span id="user-email" class="user-email"></span>
+          <button id="sign-out" class="button button-quiet" type="button">Salir</button>
+        </div>
+      </header>
+
+      <div class="content">
+        <section class="intro">
+          <div>
+            <p class="eyebrow">TU CATÁLOGO PERSONAL</p>
+            <h1>Celulares <span>a la vista.</span></h1>
+            <p class="intro-copy">Fotos y precios listos para consultar desde donde estés.</p>
+          </div>
+          <button id="add-phone" class="button button-primary add-button" type="button">
+            <span aria-hidden="true">+</span> Agregar celular
+          </button>
+        </section>
+
+        <section class="toolbar" aria-label="Herramientas de la galería">
+          <label class="search-box">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="search-input" type="search" placeholder="Buscar un celular..." aria-label="Buscar un celular">
+          </label>
+          <p id="phone-count" class="phone-count"></p>
+        </section>
+
+        <section id="phone-grid" class="phone-grid" aria-live="polite"></section>
+        <section id="empty-state" class="empty-state" hidden>
+          <div class="empty-icon" aria-hidden="true">✳</div>
+          <h2>Tu galería empieza aquí</h2>
+          <p>Agrega una foto y el precio de tu primer celular para tenerlo siempre a la mano.</p>
+          <button class="button button-primary" type="button" data-open-form>Agregar primer celular</button>
+        </section>
+        <p id="gallery-feedback" class="feedback gallery-feedback" role="status" aria-live="polite"></p>
+      </div>
+      <footer class="page-footer">Tu vitrina, contigo <span aria-hidden="true">✳</span></footer>
+    </section>
+
+    <dialog id="phone-dialog" class="phone-dialog">
+      <form id="phone-form" class="phone-form">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">MANTÉN TU CATÁLOGO AL DÍA</p>
+            <h2 id="dialog-title">Agregar celular</h2>
+          </div>
+          <button id="close-dialog" class="close-button" type="button" aria-label="Cerrar">×</button>
+        </div>
+        <label for="phone-name">Marca y modelo</label>
+        <input id="phone-name" name="name" type="text" maxlength="80" placeholder="Ej. iPhone 14 Pro" required>
+        <label for="phone-price">Precio</label>
+        <div class="price-input">
+          <span aria-hidden="true">$</span>
+          <input id="phone-price" name="price" type="number" min="0" step="0.01" placeholder="0.00" required>
+        </div>
+        <label for="phone-photo">Foto del celular <span id="photo-optional" class="label-note"></span></label>
+        <label id="upload-area" class="upload-area" for="phone-photo">
+          <img id="photo-preview" alt="Vista previa de la foto seleccionada" hidden>
+          <span id="upload-prompt">
+            <span class="upload-icon" aria-hidden="true">↑</span>
+            <strong>Elige una foto</strong>
+            <span>JPG, PNG o WEBP · máximo 10 MB</span>
+          </span>
+        </label>
+        <input id="phone-photo" class="visually-hidden" name="photo" type="file" accept="image/jpeg,image/png,image/webp">
+        <p id="form-feedback" class="feedback" role="status" aria-live="polite"></p>
+        <div class="dialog-actions">
+          <button id="cancel-dialog" class="button button-quiet" type="button">Cancelar</button>
+          <button id="save-phone" class="button button-primary" type="submit">Guardar celular</button>
+        </div>
+      </form>
+    </dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
+</body>
+</html>
