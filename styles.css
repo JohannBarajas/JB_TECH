@@ -112,6 +112,8 @@ h1, h2, p { margin-top: 0; }
 .phone-price::before { content: "$"; margin-right: 2px; font-size: 14px; vertical-align: 2px; }
 .admin-cost { margin: 7px 0 0; padding-top: 7px; border-top: 1px solid var(--line); color: #765a36; font-size: 12px; font-weight: 600; }
 .admin-cost strong { color: var(--ink); font-weight: 700; }
+.admin-distributor { margin: 6px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
+.admin-distributor strong { color: #5b6258; }
 
 .empty-state { max-width: 430px; margin: 54px auto 90px; padding: 30px 20px; text-align: center; }
 .empty-icon { width: 54px; height: 54px; margin: 0 auto 18px; display: grid; place-items: center; border-radius: 18px; background: var(--soft-green); color: var(--green); font-size: 27px; }
@@ -200,6 +202,7 @@ h1, h2, p { margin-top: 0; }
   .phone-name { font-size: 12px; }
   .phone-price { font-size: 17px; }
   .admin-cost { font-size: 11px; }
+  .admin-distributor { font-size: 10px; }
   .card-actions { opacity: 1; }
   .icon-button { width: 31px; height: 31px; }
   .user-email { max-width: 135px; font-size: 11px; }

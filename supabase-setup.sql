@@ -159,9 +159,15 @@ create policy "Only catalog admins can delete photos"
 
 create table if not exists public.catalog_phone_costs (
   phone_id uuid primary key references public.catalog_phones (id) on delete cascade,
-  cost numeric(12, 2) not null check (cost >= 0),
+  cost numeric(12, 2) check (cost is null or cost >= 0),
+  distributor text check (distributor is null or char_length(distributor) <= 100),
   updated_at timestamptz not null default now()
 );
+
+alter table public.catalog_phone_costs alter column cost drop not null;
+alter table public.catalog_phone_costs
+  add column if not exists distributor text
+  check (distributor is null or char_length(distributor) <= 100);
 
 alter table public.catalog_phone_costs enable row level security;
 revoke all on public.catalog_phone_costs from anon, public;

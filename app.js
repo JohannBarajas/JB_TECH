@@ -45,6 +45,7 @@ const el = {
   name: document.querySelector("#phone-name"),
   price: document.querySelector("#phone-price"),
   cost: document.querySelector("#phone-cost"),
+  distributor: document.querySelector("#phone-distributor"),
   photo: document.querySelector("#phone-photo"),
   photoOptional: document.querySelector("#photo-optional"),
   photoPreview: document.querySelector("#photo-preview"),
@@ -206,11 +207,11 @@ async function loadPhones() {
   if (adminAuthorized) {
     const { data: costRows, error: costError } = await client
       .from("catalog_phone_costs")
-      .select("phone_id, cost");
+      .select("phone_id, cost, distributor");
     if (costError) {
       showMessage(el.galleryFeedback, `No se pudieron cargar los costos privados. Ejecuta la actualización SQL del archivo supabase-setup.sql: ${costError.message}`);
     } else {
-      costs = new Map(costRows.map(row => [row.phone_id, row.cost]));
+      costs = new Map(costRows.map(row => [row.phone_id, row]));
     }
   }
 
@@ -218,7 +219,8 @@ async function loadPhones() {
     ? STARTER_CATALOG.map(phone => ({ ...phone, cost: null }))
     : data.map(phone => ({
       ...phone,
-      cost: costs.get(phone.id) ?? null,
+      cost: costs.get(phone.id)?.cost ?? null,
+      distributor: costs.get(phone.id)?.distributor ?? null,
       imageUrl: client.storage.from(STORAGE_BUCKET).getPublicUrl(phone.image_path).data.publicUrl
     }));
   renderPhones();
@@ -321,6 +323,7 @@ function renderPhones() {
       <div class="phone-details">
         <h2 class="phone-name" title="${escapeHtml(phone.name)}">${escapeHtml(phone.name)}</h2>
         ${adminAuthorized ? `<p class="admin-cost">Costo: <strong>${escapeHtml(formatPrice(phone.cost))}</strong></p>` : ""}
+        ${adminAuthorized && phone.distributor ? `<p class="admin-distributor">Proveedor: <strong>${escapeHtml(phone.distributor)}</strong></p>` : ""}
       </div>
     </article>
   `).join("");
@@ -348,6 +351,7 @@ function openPhoneDialog(phone = null) {
   el.name.value = phone ? phone.name : "";
   el.price.value = phone?.price ?? "";
   el.cost.value = phone?.cost ?? "";
+  el.distributor.value = phone?.distributor ?? "";
   if (phone) {
     el.photoPreview.src = phone.imageUrl;
     el.photoPreview.hidden = false;
@@ -398,9 +402,12 @@ async function savePhone(event) {
     const price = priceValue === "" ? null : Number(priceValue);
     const costValue = el.cost.value.trim();
     const cost = costValue === "" ? null : Number(costValue);
+    const distributorValue = el.distributor.value.trim();
+    const distributor = distributorValue === "" ? null : distributorValue;
     if (!name) throw new Error("Escribe la marca y el modelo del celular.");
     if (price !== null && (!Number.isFinite(price) || price < 0)) throw new Error("Escribe un precio válido.");
     if (cost !== null && (!Number.isFinite(cost) || cost < 0)) throw new Error("Escribe un costo válido.");
+    if (distributor && distributor.length > 100) throw new Error("El nombre del distribuidor debe tener como máximo 100 caracteres.");
     if (!wasEditing && !selectedPhoto) throw new Error("Selecciona una foto del celular.");
 
     if (selectedPhoto) newPath = await uploadPhoto(selectedPhoto);
@@ -416,11 +423,14 @@ async function savePhone(event) {
     if (!result.data) throw new Error("No se pudo confirmar que el celular quedó guardado.");
 
     const phoneId = wasEditing ? editingPhone.id : result.data.id;
-    const costResult = cost === null
+    const costResult = cost === null && !distributor
       ? await client.from("catalog_phone_costs").delete().eq("phone_id", phoneId)
-      : await client.from("catalog_phone_costs").upsert({ phone_id: phoneId, cost }, { onConflict: "phone_id" });
+      : await client.from("catalog_phone_costs").upsert(
+        { phone_id: phoneId, cost, distributor, updated_at: new Date().toISOString() },
+        { onConflict: "phone_id" }
+      );
     if (costResult.error) {
-      const costError = new Error(`El celular se guardó, pero no se pudo guardar el costo. Ejecuta la actualización SQL de supabase-setup.sql: ${costResult.error.message}`);
+      const costError = new Error(`El celular se guardó, pero no se pudieron guardar sus datos privados. Ejecuta la actualización SQL de supabase-setup.sql: ${costResult.error.message}`);
       costError.phoneWasSaved = true;
       throw costError;
     }

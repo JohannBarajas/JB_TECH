@@ -8,7 +8,7 @@ Supabase protege la cuenta de administrador y guarda los cambios. Sin configurar
 
 1. Crea un proyecto en [Supabase](https://supabase.com/).
 2. En **Authentication → Users**, selecciona **Add user** y crea tu cuenta con tu correo y contraseña. Confirma la cuenta desde el panel.
-3. En **SQL Editor**, ejecuta todo el contenido actualizado de `supabase-setup.sql`. Si ya ejecutaste una versión anterior, vuelve a ejecutar el archivo completo para crear la tabla protegida de costos.
+3. En **SQL Editor**, ejecuta todo el contenido actualizado de `supabase-setup.sql`. Si ya ejecutaste una versión anterior, vuelve a ejecutar el archivo completo para agregar la tienda o distribuidor privado junto al costo.
 4. Todavía en **SQL Editor**, autoriza únicamente la cuenta que acabas de crear. Reemplaza el correo del ejemplo y ejecuta:
 
    ```sql
@@ -27,7 +27,7 @@ El rol se asigna en la base de datos, no mediante un botón de registro público
 ## Uso del catálogo
 
 - Los botones de editar y eliminar aparecen al iniciar sesión como administrador.
-- El costo se guarda en una tabla privada separada; la consulta pública del catálogo no puede leerlo.
+- El costo y el distribuidor se guardan en una tabla privada separada; la consulta pública del catálogo no puede leerlos.
 - En el editor puedes acercar o alejar, arrastrar, recortar y girar la foto antes de guardarla.
 - Puedes dejar un precio vacío para que se muestre como pendiente.
 - Las fotos deben ser JPG, PNG o WEBP y pesar hasta 10 MB.

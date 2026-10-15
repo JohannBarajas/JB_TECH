@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=4">
+  <link rel="stylesheet" href="styles.css?v=5">
 </head>
 <body>
   <main id="app" class="app-shell">
@@ -99,6 +99,8 @@
           <span aria-hidden="true">$</span>
           <input id="phone-cost" name="cost" type="number" min="0" step="0.01" placeholder="Opcional">
         </div>
+        <label for="phone-distributor">Distribuidor o tienda <span class="label-note">· solo visible para ti</span></label>
+        <input id="phone-distributor" name="distributor" type="text" maxlength="100" placeholder="Ej. tienda oficial o nombre del proveedor">
         <label for="phone-photo">Foto del celular <span id="photo-optional" class="label-note"></span></label>
         <label id="upload-area" class="upload-area" for="phone-photo">
           <img id="photo-preview" alt="Vista previa de la foto seleccionada" hidden>
@@ -144,6 +146,6 @@
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
