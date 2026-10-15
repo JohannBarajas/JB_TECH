@@ -364,7 +364,7 @@ function renderPhones() {
       <div class="phone-details">
         <h2 class="phone-name" title="${escapeHtml(phone.name)}">${escapeHtml(phone.name)}</h2>
         ${adminAuthorized ? `<p class="admin-cost">Costo: <strong>${escapeHtml(formatPrice(phone.cost))}</strong></p>` : ""}
-        ${adminAuthorized && phone.distributor ? `<p class="admin-distributor">Proveedor: <strong>${escapeHtml(phone.distributor)}</strong></p>` : ""}
+        ${adminAuthorized && phone.distributor ? `<p class="admin-distributor">Tienda / distribuidor: <strong>${escapeHtml(phone.distributor)}</strong></p>` : ""}
       </div>
     </article>
   `).join("");
@@ -452,7 +452,7 @@ async function savePhone(event) {
     if (!name) throw new Error("Escribe la marca y el modelo del celular.");
     if (price !== null && (!Number.isFinite(price) || price < 0)) throw new Error("Escribe un precio válido.");
     if (cost !== null && (!Number.isFinite(cost) || cost < 0)) throw new Error("Escribe un costo válido.");
-    if (distributor && distributor.length > 100) throw new Error("El nombre del distribuidor debe tener como máximo 100 caracteres.");
+    if (distributor && distributor.length > 100) throw new Error("El nombre de la tienda o distribuidor debe tener como máximo 100 caracteres.");
     if (!wasEditing && !selectedPhoto) throw new Error("Selecciona una foto del celular.");
 
     if (selectedPhoto) newPath = await uploadPhoto(selectedPhoto);

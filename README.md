@@ -28,6 +28,7 @@ El rol se asigna en la base de datos, no mediante un botón de registro público
 
 - Los botones de editar y eliminar aparecen al iniciar sesión como administrador.
 - El costo y el distribuidor se guardan en una tabla privada separada; la consulta pública del catálogo no puede leerlos.
+- La tienda o distribuidor indicado aparece debajo del costo en la vista de administrador para recordar dónde está cada celular.
 - En el editor puedes acercar o alejar, arrastrar la foto, girarla y mover o cambiar libremente el tamaño del marco de recorte antes de guardarla.
 - Al editar un celular existente, puedes pulsar **Recortar foto actual** o usar el botón ✂ sobre la tarjeta para recortar directamente la foto guardada. El marco empieza en los bordes de la imagen; arrastra sus esquinas o lados para ajustar libremente el recorte. Si necesitas alejar más la foto, reduce primero el marco.
 - Como administrador, pulsa **Escribir sobre la foto** para añadir texto, arrastrarlo, ajustar su tamaño o color y mostrarlo sobre la foto para todos.
