@@ -8,47 +8,41 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=2">
+  <link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
   <main id="app" class="app-shell">
-    <section id="setup-message" class="setup-message" hidden>
-      <div class="setup-mark" aria-hidden="true">MV</div>
-      <p class="eyebrow">UN ESPACIO PARA TUS CELULARES</p>
-      <h1>Tu vitrina te espera</h1>
-      <p>Para empezar, conecta tu proyecto de Supabase siguiendo los pasos de <a href="README.md">la guía de configuración</a>.</p>
-    </section>
-
-    <section id="auth-screen" class="auth-screen" hidden>
+    <dialog id="auth-screen" class="auth-dialog">
       <div class="auth-card">
         <div class="brand-lockup">
           <span class="brand-icon" aria-hidden="true">MV</span>
           <span>mi vitrina</span>
         </div>
-        <p class="eyebrow">TUS PRECIOS, A LA MANO</p>
-        <h1 id="auth-title">Entra a tu vitrina</h1>
-        <p class="auth-copy">Inicia sesión para consultar tus celulares desde cualquier dispositivo.</p>
+        <p class="eyebrow">ACCESO RESTRINGIDO</p>
+        <h1 id="auth-title">Acceso de administrador</h1>
+        <p class="auth-copy">Inicia sesión para agregar celulares o cambiar fotos, modelos y precios.</p>
         <form id="auth-form">
           <label for="auth-email">Correo electrónico</label>
           <input id="auth-email" name="email" type="email" autocomplete="email" placeholder="tu@correo.com" required>
           <label for="auth-password">Contraseña</label>
-          <input id="auth-password" name="password" type="password" autocomplete="current-password" minlength="6" placeholder="Mínimo 6 caracteres" required>
+          <input id="auth-password" name="password" type="password" autocomplete="current-password" required>
           <button id="auth-submit" class="button button-primary button-wide" type="submit">Iniciar sesión</button>
         </form>
         <p id="auth-feedback" class="feedback" role="status" aria-live="polite"></p>
-        <button id="toggle-auth-mode" class="text-button" type="button">¿Es tu primera vez? Crea tu cuenta</button>
+        <button id="close-auth" class="text-button" type="button">Volver a la galería</button>
       </div>
-    </section>
+    </dialog>
 
-    <section id="gallery-screen" hidden>
+    <section id="gallery-screen">
       <header class="topbar">
         <a class="brand-lockup" href="#" aria-label="Mi vitrina, inicio">
           <span class="brand-icon" aria-hidden="true">MV</span>
           <span>mi vitrina</span>
         </a>
         <div class="topbar-actions">
-          <span id="user-email" class="user-email"></span>
-          <button id="sign-out" class="button button-quiet" type="button">Salir</button>
+          <button id="admin-login" class="button button-quiet" type="button">Acceso administrador</button>
+          <span id="user-email" class="user-email" hidden></span>
+          <button id="sign-out" class="button button-quiet" type="button" hidden>Salir</button>
         </div>
       </header>
 
@@ -59,7 +53,7 @@
             <h1>Celulares <span>a la vista.</span></h1>
             <p class="intro-copy">Fotos y precios listos para consultar desde donde estés.</p>
           </div>
-          <button id="add-phone" class="button button-primary add-button" type="button">
+          <button id="add-phone" class="button button-primary add-button" type="button" hidden>
             <span aria-hidden="true">+</span> Agregar celular
           </button>
         </section>
@@ -77,7 +71,7 @@
           <div class="empty-icon" aria-hidden="true">✳</div>
           <h2>Tu galería empieza aquí</h2>
           <p>Agrega una foto y el precio de tu primer celular para tenerlo siempre a la mano.</p>
-          <button class="button button-primary" type="button" data-open-form>Agregar primer celular</button>
+          <button class="button button-primary" type="button" data-open-form hidden>Agregar primer celular</button>
         </section>
         <p id="gallery-feedback" class="feedback gallery-feedback" role="status" aria-live="polite"></p>
       </div>
@@ -95,10 +89,10 @@
         </div>
         <label for="phone-name">Marca y modelo</label>
         <input id="phone-name" name="name" type="text" maxlength="80" placeholder="Ej. iPhone 14 Pro" required>
-        <label for="phone-price">Precio</label>
+        <label for="phone-price">Precio <span class="label-note">· opcional mientras lo confirmas</span></label>
         <div class="price-input">
           <span aria-hidden="true">$</span>
-          <input id="phone-price" name="price" type="number" min="0" step="0.01" placeholder="0.00" required>
+          <input id="phone-price" name="price" type="number" min="0" step="0.01" placeholder="Dejar pendiente">
         </div>
         <label for="phone-photo">Foto del celular <span id="photo-optional" class="label-note"></span></label>
         <label id="upload-area" class="upload-area" for="phone-photo">
@@ -120,6 +114,6 @@
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>

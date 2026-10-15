@@ -121,7 +121,8 @@ h1, h2, p { margin-top: 0; }
 .page-footer { padding: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; text-align: center; }
 .page-footer span { margin-left: 4px; color: var(--green); }
 
-.auth-screen { min-height: 100vh; padding: 24px; display: grid; place-items: center; background: radial-gradient(ellipse at 70% 12%, #e8ede5 0, transparent 35%), var(--paper); }
+.auth-dialog { width: min(100% - 28px, 460px); max-height: 90vh; padding: 0; overflow: auto; border: 0; border-radius: 18px; background: transparent; }
+.auth-dialog::backdrop { background: rgb(30 37 31 / 46%); backdrop-filter: blur(3px); }
 .auth-card { width: min(100%, 420px); padding: 38px; border: 1px solid var(--line); border-radius: 18px; background: white; box-shadow: var(--shadow); }
 .auth-card .brand-lockup { margin-bottom: 45px; }
 .auth-card h1 { margin-bottom: 10px; font-size: 34px; letter-spacing: -1.7px; }

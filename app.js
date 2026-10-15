@@ -20,17 +20,17 @@ const configured = SUPABASE_URL.startsWith("https://")
   && !SUPABASE_URL.includes("PEGA_AQUI")
   && SUPABASE_ANON_KEY.length > 20
   && !SUPABASE_ANON_KEY.includes("PEGA_AQUI");
-const client = configured ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+const client = configured && window.supabase
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
 
 const el = {
-  setup: document.querySelector("#setup-message"),
   auth: document.querySelector("#auth-screen"),
-  gallery: document.querySelector("#gallery-screen"),
   authForm: document.querySelector("#auth-form"),
-  authTitle: document.querySelector("#auth-title"),
   authSubmit: document.querySelector("#auth-submit"),
   authFeedback: document.querySelector("#auth-feedback"),
-  toggleAuth: document.querySelector("#toggle-auth-mode"),
+  closeAuth: document.querySelector("#close-auth"),
+  adminLogin: document.querySelector("#admin-login"),
   userEmail: document.querySelector("#user-email"),
   signOut: document.querySelector("#sign-out"),
   addPhone: document.querySelector("#add-phone"),
@@ -56,11 +56,14 @@ const el = {
 };
 
 let currentSession = null;
+let previousSessionUserId = null;
+let sessionStateReady = false;
+let adminAuthorized = false;
 let phones = [];
 let editingPhone = null;
 let selectedPhoto = null;
-let authMode = "login";
 let toastTimer;
+let previewUrl = null;
 
 function showMessage(element, message, isError = true) {
   element.textContent = message;
@@ -71,7 +74,7 @@ function showToast(message) {
   el.toast.textContent = message;
   el.toast.classList.add("visible");
   window.clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => el.toast.classList.remove("visible"), 3000);
+  toastTimer = window.setTimeout(() => el.toast.classList.remove("visible"), 3500);
 }
 
 function escapeHtml(value) {
@@ -80,86 +83,185 @@ function escapeHtml(value) {
   })[character]);
 }
 
-function formatPrice(value) {
-  return Number(value).toLocaleString("es-MX", {
-    minimumFractionDigits: Number(value) % 1 === 0 ? 0 : 2,
+function formatPrice(value, currency = null) {
+  if (value === null || value === undefined || value === "") return "Precio pendiente";
+  const amount = Number(String(value).replaceAll(",", ""));
+  const formatted = amount.toLocaleString("es-MX", {
+    minimumFractionDigits: amount % 1 === 0 ? 0 : 2,
     maximumFractionDigits: 2
   });
-}
-
-function showScreen(screen) {
-  el.setup.hidden = screen !== "setup";
-  el.auth.hidden = screen !== "auth";
-  el.gallery.hidden = screen !== "gallery";
-}
-
-function setAuthMode(mode) {
-  authMode = mode;
-  const creating = mode === "signup";
-  el.authTitle.textContent = creating ? "Crea tu cuenta" : "Entra a tu vitrina";
-  el.authSubmit.textContent = creating ? "Crear cuenta" : "Iniciar sesión";
-  el.toggleAuth.textContent = creating
-    ? "¿Ya tienes cuenta? Inicia sesión"
-    : "¿Es tu primera vez? Crea tu cuenta";
-  el.authForm.querySelector("#auth-password").autocomplete = creating ? "new-password" : "current-password";
-  showMessage(el.authFeedback, "");
+  return `$${formatted}${currency ? ` ${currency}` : ""}`;
 }
 
 async function restoreSession() {
   const { data, error } = await client.auth.getSession();
   if (error) {
-    showScreen("auth");
-    showMessage(el.authFeedback, `No se pudo comprobar la sesión: ${error.message}`);
+    showMessage(el.galleryFeedback, `No se pudo comprobar la sesión de administrador: ${error.message}`);
     return;
   }
   await updateSession(data.session);
 }
 
 async function updateSession(session) {
+  const userId = session?.user.id || null;
+  if (sessionStateReady && userId === previousSessionUserId) return;
+  sessionStateReady = true;
+  previousSessionUserId = userId;
   currentSession = session;
+  adminAuthorized = false;
+  updateAdminControls();
+
   if (!session) {
-    phones = [];
-    showScreen("auth");
+    await loadPhones();
     return;
   }
-  el.userEmail.textContent = session.user.email || "";
-  showScreen("gallery");
-  await loadPhones();
+
+  const { data: admin, error } = await client
+    .from("catalog_admins")
+    .select("user_id")
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+  if (error) {
+    showMessage(el.galleryFeedback, `No se pudo comprobar el acceso de administrador: ${error.message}`);
+    await client.auth.signOut();
+    return;
+  }
+  if (!admin) {
+    el.auth.close();
+    await client.auth.signOut();
+    showToast("Esta cuenta no tiene permisos de administrador.");
+    return;
+  }
+
+  adminAuthorized = true;
+  el.userEmail.textContent = session.user.email || "Administrador";
+  updateAdminControls();
+  el.auth.close();
+  try {
+    await initializeCatalogIfNeeded();
+    await loadPhones();
+  } catch (error) {
+    showMessage(el.galleryFeedback, error.message);
+  }
+}
+
+function updateAdminControls() {
+  el.adminLogin.hidden = adminAuthorized;
+  el.userEmail.hidden = !adminAuthorized;
+  el.signOut.hidden = !adminAuthorized;
+  el.addPhone.hidden = !adminAuthorized;
+  el.empty.querySelector("[data-open-form]").hidden = !adminAuthorized;
 }
 
 async function loadPhones() {
   showMessage(el.galleryFeedback, "");
   el.grid.innerHTML = '<p class="loading-message">Cargando tu galería...</p>';
   el.empty.hidden = true;
-  const { data, error } = await client
-    .from("phones")
-    .select("id, name, price, image_path, created_at")
-    .order("created_at", { ascending: false });
 
-  if (error) {
-    el.grid.replaceChildren();
-    showMessage(el.galleryFeedback, `No se pudieron cargar tus celulares: ${error.message}`);
+  if (!client) {
+    phones = STARTER_CATALOG;
+    renderPhones();
     return;
   }
 
-  try {
-    const signedPhones = await Promise.all(data.map(async phone => {
-      const { data: signed, error: imageError } = await client.storage
-        .from(STORAGE_BUCKET)
-        .createSignedUrl(phone.image_path, 60 * 60);
-      if (imageError) {
-        throw new Error(`No se pudo abrir la foto de "${phone.name}": ${imageError.message}`);
-      }
-      return { ...phone, imageUrl: signed.signedUrl };
-    }));
-
-    phones = signedPhones;
-    renderPhones();
-  } catch (error) {
+  const [{ data, error }, { data: settings, error: settingsError }] = await Promise.all([
+    client.from("catalog_phones")
+      .select("id, name, price, currency, image_path, created_at")
+      .order("created_at", { ascending: false }),
+    client.from("catalog_settings")
+      .select("initialized")
+      .eq("singleton", true)
+      .single()
+  ]);
+  if (error) {
     phones = [];
     el.grid.replaceChildren();
-    showMessage(el.galleryFeedback, error.message);
+    showMessage(el.galleryFeedback, `No se pudo cargar el catálogo: ${error.message}`);
+    return;
   }
+  if (settingsError) {
+    phones = [];
+    el.grid.replaceChildren();
+    showMessage(el.galleryFeedback, `No se pudo comprobar la configuración del catálogo: ${settingsError.message}`);
+    return;
+  }
+
+  phones = data.length === 0 && !settings.initialized
+    ? STARTER_CATALOG
+    : data.map(phone => ({
+      ...phone,
+      imageUrl: client.storage.from(STORAGE_BUCKET).getPublicUrl(phone.image_path).data.publicUrl
+    }));
+  renderPhones();
+}
+
+async function initializeCatalogIfNeeded() {
+  const { data: settings, error: settingsError } = await client
+    .from("catalog_settings")
+    .select("initialized")
+    .eq("singleton", true)
+    .single();
+  if (settingsError) throw new Error(`No se pudo comprobar la configuración inicial: ${settingsError.message}`);
+  if (settings.initialized) return;
+
+  const { data: existing, error: catalogError } = await client
+    .from("catalog_phones")
+    .select("id")
+    .limit(1);
+  if (catalogError) throw new Error(`No se pudo comprobar el catálogo: ${catalogError.message}`);
+  if (existing.length > 0) {
+    await markCatalogInitialized();
+    return;
+  }
+
+  const uploadedPaths = [];
+  const seedRecords = [];
+  try {
+    for (const [index, phone] of STARTER_CATALOG.entries()) {
+      const response = await fetch(phone.imageUrl);
+      if (!response.ok) throw new Error(`No se pudo abrir la foto ${index + 1} para importarla.`);
+      const image = await response.blob();
+      const imagePath = `catalog/${crypto.randomUUID()}.jpg`;
+      const { error } = await client.storage.from(STORAGE_BUCKET).upload(imagePath, image, {
+        cacheControl: "3600",
+        contentType: "image/jpeg",
+        upsert: false
+      });
+      if (error) throw new Error(`No se pudo guardar una foto del catálogo inicial: ${error.message}`);
+      uploadedPaths.push(imagePath);
+      seedRecords.push({
+        name: phone.name,
+        price: phone.price === null ? null : Number(String(phone.price).replaceAll(",", "")),
+        currency: phone.currencyNote || null,
+        image_path: imagePath
+      });
+    }
+  } catch (error) {
+    await removeUploadedPhotos(uploadedPaths);
+    throw error;
+  }
+
+  const { error: insertError } = await client.from("catalog_phones").insert(seedRecords);
+  if (insertError) {
+    await removeUploadedPhotos(uploadedPaths);
+    throw new Error(`No se pudo importar el catálogo inicial: ${insertError.message}`);
+  }
+  await markCatalogInitialized();
+  showToast("Catálogo inicial importado. Ya puedes editar cada celular.");
+}
+
+async function markCatalogInitialized() {
+  const { error } = await client
+    .from("catalog_settings")
+    .update({ initialized: true })
+    .eq("singleton", true);
+  if (error) throw new Error(`No se pudo finalizar la configuración del catálogo: ${error.message}`);
+}
+
+async function removeUploadedPhotos(paths) {
+  if (paths.length === 0) return;
+  const { error } = await client.storage.from(STORAGE_BUCKET).remove(paths);
+  if (error) console.error("No se pudieron borrar fotos subidas durante una operación incompleta:", error);
 }
 
 function renderPhones() {
@@ -179,46 +281,13 @@ function renderPhones() {
 
   el.grid.innerHTML = filtered.map(phone => `
     <article class="phone-card">
-      <div class="phone-image-wrap">
-        <img class="phone-image" src="${escapeHtml(phone.imageUrl)}" alt="${escapeHtml(phone.name)}" loading="lazy">
-        <div class="card-actions">
-          <button class="icon-button" type="button" data-edit="${escapeHtml(phone.id)}" aria-label="Editar ${escapeHtml(phone.name)}">✎</button>
-          <button class="icon-button delete" type="button" data-delete="${escapeHtml(phone.id)}" aria-label="Eliminar ${escapeHtml(phone.name)}">×</button>
-        </div>
-      </div>
-      <div class="phone-details">
-        <h2 class="phone-name" title="${escapeHtml(phone.name)}">${escapeHtml(phone.name)}</h2>
-        <p class="phone-price">${formatPrice(phone.price)}</p>
-      </div>
-    </article>
-  `).join("");
-}
-
-function renderStarterCatalog() {
-  phones = STARTER_CATALOG;
-  el.userEmail.hidden = true;
-  el.signOut.hidden = true;
-  el.addPhone.hidden = true;
-  el.empty.hidden = true;
-  el.count.textContent = `${phones.length} fotos`;
-  renderStaticPhones();
-}
-
-function renderStaticPhones() {
-  const query = el.search.value.trim().toLocaleLowerCase("es");
-  const filtered = phones.filter(phone => phone.name.toLocaleLowerCase("es").includes(query));
-  el.count.textContent = `${phones.length} ${phones.length === 1 ? "foto" : "fotos"}`;
-
-  if (filtered.length === 0) {
-    el.grid.innerHTML = '<p class="loading-message">No encontramos celulares con ese nombre.</p>';
-    return;
-  }
-
-  el.grid.innerHTML = filtered.map(phone => `
-    <article class="phone-card">
       <div class="phone-image-wrap static-image-wrap">
         <img class="phone-image static-photo" src="${escapeHtml(phone.imageUrl)}" alt="${escapeHtml(phone.name)}" loading="lazy">
-        <span class="photo-price-tag${phone.price ? "" : " price-pending"}">${phone.price ? `$${escapeHtml(phone.price)}${phone.currencyNote ? ` ${escapeHtml(phone.currencyNote)}` : ""}` : "Precio pendiente"}</span>
+        <span class="photo-price-tag${phone.price === null || phone.price === undefined ? " price-pending" : ""}">${escapeHtml(formatPrice(phone.price, phone.currency || phone.currencyNote))}</span>
+        ${adminAuthorized ? `<div class="card-actions">
+          <button class="icon-button" type="button" data-edit="${escapeHtml(phone.id)}" aria-label="Editar ${escapeHtml(phone.name)}">✎</button>
+          <button class="icon-button delete" type="button" data-delete="${escapeHtml(phone.id)}" aria-label="Eliminar ${escapeHtml(phone.name)}">×</button>
+        </div>` : ""}
       </div>
       <div class="phone-details">
         <h2 class="phone-name" title="${escapeHtml(phone.name)}">${escapeHtml(phone.name)}</h2>
@@ -228,6 +297,8 @@ function renderStaticPhones() {
 }
 
 function resetPhotoPreview() {
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = null;
   el.photoPreview.removeAttribute("src");
   el.photoPreview.hidden = true;
   el.uploadPrompt.hidden = false;
@@ -236,6 +307,7 @@ function resetPhotoPreview() {
 }
 
 function openPhoneDialog(phone = null) {
+  if (!adminAuthorized) return;
   editingPhone = phone;
   el.phoneForm.reset();
   resetPhotoPreview();
@@ -244,7 +316,7 @@ function openPhoneDialog(phone = null) {
   el.savePhone.textContent = phone ? "Guardar cambios" : "Guardar celular";
   el.photoOptional.textContent = phone ? "· opcional si solo cambiarás el precio o nombre" : "";
   el.name.value = phone ? phone.name : "";
-  el.price.value = phone ? phone.price : "";
+  el.price.value = phone?.price ?? "";
   if (phone) {
     el.photoPreview.src = phone.imageUrl;
     el.photoPreview.hidden = false;
@@ -270,7 +342,7 @@ async function uploadPhoto(file) {
   if (!extension) throw new Error("La foto debe estar en formato JPG, PNG o WEBP.");
   if (file.size > MAX_PHOTO_SIZE) throw new Error("La foto debe pesar menos de 10 MB.");
 
-  const path = `${currentSession.user.id}/${crypto.randomUUID()}.${extension}`;
+  const path = `catalog/${crypto.randomUUID()}.${extension}`;
   const { error } = await client.storage.from(STORAGE_BUCKET).upload(path, file, {
     cacheControl: "3600",
     contentType: file.type,
@@ -282,6 +354,7 @@ async function uploadPhoto(file) {
 
 async function savePhone(event) {
   event.preventDefault();
+  if (!adminAuthorized) return;
   showMessage(el.formFeedback, "");
   el.savePhone.disabled = true;
   el.savePhone.textContent = selectedPhoto ? "Subiendo foto..." : "Guardando...";
@@ -290,10 +363,11 @@ async function savePhone(event) {
   const wasEditing = Boolean(editingPhone);
   try {
     const name = el.name.value.trim();
-    const price = Number(el.price.value);
+    const priceValue = el.price.value.trim();
+    const price = priceValue === "" ? null : Number(priceValue);
     if (!name) throw new Error("Escribe la marca y el modelo del celular.");
-    if (!Number.isFinite(price) || price < 0) throw new Error("Escribe un precio válido.");
-    if (!editingPhone && !selectedPhoto) throw new Error("Selecciona una foto del celular.");
+    if (price !== null && (!Number.isFinite(price) || price < 0)) throw new Error("Escribe un precio válido.");
+    if (!wasEditing && !selectedPhoto) throw new Error("Selecciona una foto del celular.");
 
     if (selectedPhoto) newPath = await uploadPhoto(selectedPhoto);
     const values = {
@@ -301,17 +375,15 @@ async function savePhone(event) {
       price,
       image_path: newPath || editingPhone.image_path
     };
-
-    const result = editingPhone
-      ? await client.from("phones").update(values).eq("id", editingPhone.id).select("id").single()
-      : await client.from("phones").insert(values).select("id").single();
+    const result = wasEditing
+      ? await client.from("catalog_phones").update(values).eq("id", editingPhone.id).select("id").single()
+      : await client.from("catalog_phones").insert(values).select("id").single();
     if (result.error) throw new Error(`No se pudo guardar el celular: ${result.error.message}`);
     if (!result.data) throw new Error("No se pudo confirmar que el celular quedó guardado.");
 
-    const previousPath = editingPhone?.image_path;
+    const previousPath = wasEditing ? editingPhone.image_path : null;
     closePhoneDialog();
     await loadPhones();
-
     if (newPath && previousPath) {
       const { error } = await client.storage.from(STORAGE_BUCKET).remove([previousPath]);
       if (error) showToast(`Se guardó el cambio, pero no se pudo borrar la foto anterior: ${error.message}`);
@@ -320,22 +392,20 @@ async function savePhone(event) {
       showToast(wasEditing ? "Cambios guardados." : "Celular agregado a tu galería.");
     }
   } catch (error) {
-    if (newPath) {
-      const { error: cleanupError } = await client.storage.from(STORAGE_BUCKET).remove([newPath]);
-      if (cleanupError) console.error("No se pudo limpiar la foto subida tras un error:", cleanupError);
-    }
+    if (newPath) await removeUploadedPhotos([newPath]);
     showMessage(el.formFeedback, error.message);
   } finally {
     el.savePhone.disabled = false;
-    el.savePhone.textContent = editingPhone ? "Guardar cambios" : "Guardar celular";
+    el.savePhone.textContent = wasEditing ? "Guardar cambios" : "Guardar celular";
   }
 }
 
 async function deletePhone(id) {
+  if (!adminAuthorized) return;
   const phone = phones.find(item => item.id === id);
   if (!phone || !window.confirm(`¿Eliminar ${phone.name} de tu galería?`)) return;
 
-  const { error } = await client.from("phones").delete().eq("id", phone.id);
+  const { error } = await client.from("catalog_phones").delete().eq("id", phone.id);
   if (error) {
     showMessage(el.galleryFeedback, `No se pudo eliminar el celular: ${error.message}`);
     return;
@@ -353,28 +423,35 @@ async function deletePhone(id) {
 
 el.authForm.addEventListener("submit", async event => {
   event.preventDefault();
+  showMessage(el.authFeedback, "");
+  if (!client) {
+    showMessage(el.authFeedback, "Falta conectar Supabase. Sigue la guía de configuración del README.");
+    return;
+  }
+
   const formData = new FormData(el.authForm);
   const email = String(formData.get("email")).trim();
   const password = String(formData.get("password"));
   el.authSubmit.disabled = true;
-  showMessage(el.authFeedback, "");
 
   try {
-    const result = authMode === "signup"
-      ? await client.auth.signUp({ email, password })
-      : await client.auth.signInWithPassword({ email, password });
-    if (result.error) throw result.error;
-    if (authMode === "signup" && !result.data.session) {
-      showMessage(el.authFeedback, "Revisa tu correo y confirma la cuenta para poder iniciar sesión.", false);
-    }
+    const { error } = await client.auth.signInWithPassword({ email, password });
+    if (error) throw error;
   } catch (error) {
-    showMessage(el.authFeedback, error.message || "No se pudo completar el inicio de sesión.");
+    showMessage(el.authFeedback, error.message || "No se pudo iniciar sesión.");
   } finally {
     el.authSubmit.disabled = false;
   }
 });
 
-el.toggleAuth.addEventListener("click", () => setAuthMode(authMode === "login" ? "signup" : "login"));
+el.adminLogin.addEventListener("click", () => {
+  showMessage(el.authFeedback, "");
+  el.auth.showModal();
+});
+el.closeAuth.addEventListener("click", () => el.auth.close());
+el.auth.addEventListener("click", event => {
+  if (event.target === el.auth) el.auth.close();
+});
 el.signOut.addEventListener("click", async () => {
   const { error } = await client.auth.signOut();
   if (error) showMessage(el.galleryFeedback, `No se pudo cerrar sesión: ${error.message}`);
@@ -384,7 +461,7 @@ el.empty.querySelector("[data-open-form]").addEventListener("click", () => openP
 el.cancelDialog.addEventListener("click", closePhoneDialog);
 el.closeDialog.addEventListener("click", closePhoneDialog);
 el.phoneForm.addEventListener("submit", savePhone);
-el.search.addEventListener("input", () => configured ? renderPhones() : renderStaticPhones());
+el.search.addEventListener("input", renderPhones);
 
 el.photo.addEventListener("change", () => {
   const file = el.photo.files?.[0];
@@ -399,7 +476,9 @@ el.photo.addEventListener("change", () => {
   }
   selectedPhoto = file;
   showMessage(el.formFeedback, "");
-  el.photoPreview.src = URL.createObjectURL(file);
+  if (previewUrl) URL.revokeObjectURL(previewUrl);
+  previewUrl = URL.createObjectURL(file);
+  el.photoPreview.src = previewUrl;
   el.photoPreview.hidden = false;
   el.uploadPrompt.hidden = true;
 });
@@ -407,19 +486,20 @@ el.photo.addEventListener("change", () => {
 el.grid.addEventListener("click", event => {
   const editButton = event.target.closest("[data-edit]");
   const deleteButton = event.target.closest("[data-delete]");
-  if (editButton) {
+  if (editButton && adminAuthorized) {
     const phone = phones.find(item => item.id === editButton.dataset.edit);
     if (phone) openPhoneDialog(phone);
   }
-  if (deleteButton) deletePhone(deleteButton.dataset.delete);
+  if (deleteButton && adminAuthorized) deletePhone(deleteButton.dataset.delete);
 });
 
-if (!configured || !window.supabase) {
-  showScreen("gallery");
-  renderStarterCatalog();
-} else {
+if (client) {
+  el.adminLogin.hidden = false;
   client.auth.onAuthStateChange((_event, session) => {
     window.setTimeout(() => updateSession(session), 0);
   });
   restoreSession();
+} else {
+  el.adminLogin.hidden = false;
+  loadPhones();
 }
