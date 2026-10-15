@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=3">
+  <link rel="stylesheet" href="styles.css?v=4">
 </head>
 <body>
   <main id="app" class="app-shell">
@@ -89,10 +89,15 @@
         </div>
         <label for="phone-name">Marca y modelo</label>
         <input id="phone-name" name="name" type="text" maxlength="80" placeholder="Ej. iPhone 14 Pro" required>
-        <label for="phone-price">Precio <span class="label-note">· opcional mientras lo confirmas</span></label>
+        <label for="phone-price">Precio de venta <span class="label-note">· visible al público</span></label>
         <div class="price-input">
           <span aria-hidden="true">$</span>
           <input id="phone-price" name="price" type="number" min="0" step="0.01" placeholder="Dejar pendiente">
+        </div>
+        <label for="phone-cost">Precio de costo <span class="label-note">· solo visible para ti</span></label>
+        <div class="price-input cost-input">
+          <span aria-hidden="true">$</span>
+          <input id="phone-cost" name="cost" type="number" min="0" step="0.01" placeholder="Opcional">
         </div>
         <label for="phone-photo">Foto del celular <span id="photo-optional" class="label-note"></span></label>
         <label id="upload-area" class="upload-area" for="phone-photo">
@@ -111,9 +116,34 @@
         </div>
       </form>
     </dialog>
+    <dialog id="crop-dialog" class="crop-dialog">
+      <section class="crop-content" aria-labelledby="crop-title">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">AJUSTA TU FOTO</p>
+            <h2 id="crop-title">Recortar y girar</h2>
+          </div>
+          <button id="close-crop" class="close-button" type="button" aria-label="Cerrar">×</button>
+        </div>
+        <p class="crop-hint">Arrastra la imagen para acomodarla en el marco.</p>
+        <div class="crop-stage">
+          <canvas id="crop-canvas" width="400" height="500" aria-label="Vista de recorte de la foto"></canvas>
+        </div>
+        <label class="zoom-control" for="crop-zoom">
+          <span>Alejar</span>
+          <input id="crop-zoom" type="range" min="1" max="3" step="0.01" value="1" aria-label="Acercar o alejar foto">
+          <span>Acercar</span>
+        </label>
+        <div class="crop-actions">
+          <button id="rotate-left" class="button button-quiet" type="button">↶ Girar</button>
+          <button id="rotate-right" class="button button-quiet" type="button">↷ Girar</button>
+          <button id="apply-crop" class="button button-primary" type="button">Usar esta foto</button>
+        </div>
+      </section>
+    </dialog>
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
   </main>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

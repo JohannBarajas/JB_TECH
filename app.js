@@ -44,6 +44,7 @@ const el = {
   dialogTitle: document.querySelector("#dialog-title"),
   name: document.querySelector("#phone-name"),
   price: document.querySelector("#phone-price"),
+  cost: document.querySelector("#phone-cost"),
   photo: document.querySelector("#phone-photo"),
   photoOptional: document.querySelector("#photo-optional"),
   photoPreview: document.querySelector("#photo-preview"),
@@ -52,6 +53,13 @@ const el = {
   savePhone: document.querySelector("#save-phone"),
   cancelDialog: document.querySelector("#cancel-dialog"),
   closeDialog: document.querySelector("#close-dialog"),
+  cropDialog: document.querySelector("#crop-dialog"),
+  cropCanvas: document.querySelector("#crop-canvas"),
+  cropZoom: document.querySelector("#crop-zoom"),
+  closeCrop: document.querySelector("#close-crop"),
+  rotateLeft: document.querySelector("#rotate-left"),
+  rotateRight: document.querySelector("#rotate-right"),
+  applyCrop: document.querySelector("#apply-crop"),
   toast: document.querySelector("#toast")
 };
 
@@ -64,6 +72,14 @@ let editingPhone = null;
 let selectedPhoto = null;
 let toastTimer;
 let previewUrl = null;
+let cropSourceUrl = null;
+let cropSourceFile = null;
+let cropImage = null;
+let cropRotation = 0;
+let cropZoom = 1;
+let cropPanX = 0;
+let cropPanY = 0;
+let cropDrag = null;
 
 function showMessage(element, message, isError = true) {
   element.textContent = message;
@@ -159,7 +175,7 @@ async function loadPhones() {
   el.empty.hidden = true;
 
   if (!client) {
-    phones = STARTER_CATALOG;
+    phones = STARTER_CATALOG.map(phone => ({ ...phone, cost: null }));
     renderPhones();
     return;
   }
@@ -186,10 +202,23 @@ async function loadPhones() {
     return;
   }
 
+  let costs = new Map();
+  if (adminAuthorized) {
+    const { data: costRows, error: costError } = await client
+      .from("catalog_phone_costs")
+      .select("phone_id, cost");
+    if (costError) {
+      showMessage(el.galleryFeedback, `No se pudieron cargar los costos privados. Ejecuta la actualización SQL del archivo supabase-setup.sql: ${costError.message}`);
+    } else {
+      costs = new Map(costRows.map(row => [row.phone_id, row.cost]));
+    }
+  }
+
   phones = data.length === 0 && !settings.initialized
-    ? STARTER_CATALOG
+    ? STARTER_CATALOG.map(phone => ({ ...phone, cost: null }))
     : data.map(phone => ({
       ...phone,
+      cost: costs.get(phone.id) ?? null,
       imageUrl: client.storage.from(STORAGE_BUCKET).getPublicUrl(phone.image_path).data.publicUrl
     }));
   renderPhones();
@@ -291,6 +320,7 @@ function renderPhones() {
       </div>
       <div class="phone-details">
         <h2 class="phone-name" title="${escapeHtml(phone.name)}">${escapeHtml(phone.name)}</h2>
+        ${adminAuthorized ? `<p class="admin-cost">Costo: <strong>${escapeHtml(formatPrice(phone.cost))}</strong></p>` : ""}
       </div>
     </article>
   `).join("");
@@ -317,6 +347,7 @@ function openPhoneDialog(phone = null) {
   el.photoOptional.textContent = phone ? "· opcional si solo cambiarás el precio o nombre" : "";
   el.name.value = phone ? phone.name : "";
   el.price.value = phone?.price ?? "";
+  el.cost.value = phone?.cost ?? "";
   if (phone) {
     el.photoPreview.src = phone.imageUrl;
     el.photoPreview.hidden = false;
@@ -365,8 +396,11 @@ async function savePhone(event) {
     const name = el.name.value.trim();
     const priceValue = el.price.value.trim();
     const price = priceValue === "" ? null : Number(priceValue);
+    const costValue = el.cost.value.trim();
+    const cost = costValue === "" ? null : Number(costValue);
     if (!name) throw new Error("Escribe la marca y el modelo del celular.");
     if (price !== null && (!Number.isFinite(price) || price < 0)) throw new Error("Escribe un precio válido.");
+    if (cost !== null && (!Number.isFinite(cost) || cost < 0)) throw new Error("Escribe un costo válido.");
     if (!wasEditing && !selectedPhoto) throw new Error("Selecciona una foto del celular.");
 
     if (selectedPhoto) newPath = await uploadPhoto(selectedPhoto);
@@ -381,6 +415,16 @@ async function savePhone(event) {
     if (result.error) throw new Error(`No se pudo guardar el celular: ${result.error.message}`);
     if (!result.data) throw new Error("No se pudo confirmar que el celular quedó guardado.");
 
+    const phoneId = wasEditing ? editingPhone.id : result.data.id;
+    const costResult = cost === null
+      ? await client.from("catalog_phone_costs").delete().eq("phone_id", phoneId)
+      : await client.from("catalog_phone_costs").upsert({ phone_id: phoneId, cost }, { onConflict: "phone_id" });
+    if (costResult.error) {
+      const costError = new Error(`El celular se guardó, pero no se pudo guardar el costo. Ejecuta la actualización SQL de supabase-setup.sql: ${costResult.error.message}`);
+      costError.phoneWasSaved = true;
+      throw costError;
+    }
+
     const previousPath = wasEditing ? editingPhone.image_path : null;
     closePhoneDialog();
     await loadPhones();
@@ -392,8 +436,14 @@ async function savePhone(event) {
       showToast(wasEditing ? "Cambios guardados." : "Celular agregado a tu galería.");
     }
   } catch (error) {
-    if (newPath) await removeUploadedPhotos([newPath]);
-    showMessage(el.formFeedback, error.message);
+    if (error.phoneWasSaved) {
+      closePhoneDialog();
+      await loadPhones();
+      showMessage(el.galleryFeedback, error.message);
+    } else {
+      if (newPath) await removeUploadedPhotos([newPath]);
+      showMessage(el.formFeedback, error.message);
+    }
   } finally {
     el.savePhone.disabled = false;
     el.savePhone.textContent = wasEditing ? "Guardar cambios" : "Guardar celular";
@@ -466,22 +516,144 @@ el.search.addEventListener("input", renderPhones);
 el.photo.addEventListener("change", () => {
   const file = el.photo.files?.[0];
   if (!file) return;
+  el.photo.value = "";
   const extension = photoExtension(file);
   if (!extension || file.size > MAX_PHOTO_SIZE) {
-    el.photo.value = "";
     showMessage(el.formFeedback, !extension
       ? "La foto debe estar en formato JPG, PNG o WEBP."
       : "La foto debe pesar menos de 10 MB.");
     return;
   }
-  selectedPhoto = file;
   showMessage(el.formFeedback, "");
-  if (previewUrl) URL.revokeObjectURL(previewUrl);
-  previewUrl = URL.createObjectURL(file);
-  el.photoPreview.src = previewUrl;
-  el.photoPreview.hidden = false;
-  el.uploadPrompt.hidden = true;
+  openCropEditor(file).catch(error => {
+    showMessage(el.formFeedback, error.message);
+  });
 });
+
+function getCropGeometry() {
+  const width = cropImage.naturalWidth;
+  const height = cropImage.naturalHeight;
+  const radians = cropRotation * Math.PI / 180;
+  const absoluteCos = Math.abs(Math.cos(radians));
+  const absoluteSin = Math.abs(Math.sin(radians));
+  const rotatedWidth = width * absoluteCos + height * absoluteSin;
+  const rotatedHeight = width * absoluteSin + height * absoluteCos;
+  const canvas = el.cropCanvas;
+  const scale = Math.max(canvas.width / rotatedWidth, canvas.height / rotatedHeight) * cropZoom;
+  const limitX = Math.max(0, (rotatedWidth * scale - canvas.width) / 2);
+  const limitY = Math.max(0, (rotatedHeight * scale - canvas.height) / 2);
+  cropPanX = Math.min(limitX, Math.max(-limitX, cropPanX));
+  cropPanY = Math.min(limitY, Math.max(-limitY, cropPanY));
+  return { scale, canvas };
+}
+
+function drawCropPreview() {
+  if (!cropImage) return;
+  const { scale, canvas } = getCropGeometry();
+  const context = canvas.getContext("2d");
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.fillStyle = "#242722";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.save();
+  context.translate(canvas.width / 2 + cropPanX, canvas.height / 2 + cropPanY);
+  context.rotate(cropRotation * Math.PI / 180);
+  context.scale(scale, scale);
+  context.drawImage(cropImage, -cropImage.naturalWidth / 2, -cropImage.naturalHeight / 2);
+  context.restore();
+}
+
+async function openCropEditor(file) {
+  cropSourceFile = file;
+  cropRotation = 0;
+  cropZoom = 1;
+  cropPanX = 0;
+  cropPanY = 0;
+  el.cropZoom.value = "1";
+  if (cropSourceUrl) URL.revokeObjectURL(cropSourceUrl);
+  cropSourceUrl = URL.createObjectURL(file);
+  cropImage = new Image();
+  cropImage.src = cropSourceUrl;
+  await cropImage.decode();
+  drawCropPreview();
+  el.cropDialog.showModal();
+}
+
+function closeCropEditor() {
+  el.cropDialog.close();
+}
+
+el.cropDialog.addEventListener("close", () => {
+  if (cropSourceUrl) URL.revokeObjectURL(cropSourceUrl);
+  cropSourceUrl = null;
+  cropSourceFile = null;
+  cropImage = null;
+  cropDrag = null;
+});
+
+function rotateCrop(degrees) {
+  cropRotation = (cropRotation + degrees + 360) % 360;
+  cropPanX = 0;
+  cropPanY = 0;
+  drawCropPreview();
+}
+
+function applyCrop() {
+  if (!cropImage || !cropSourceFile) return;
+  el.cropCanvas.toBlob(blob => {
+    if (!blob) {
+      showMessage(el.formFeedback, "No se pudo procesar el recorte de la foto.");
+      return;
+    }
+    if (blob.size > MAX_PHOTO_SIZE) {
+      showMessage(el.formFeedback, "La foto recortada pesa más de 10 MB.");
+      return;
+    }
+    selectedPhoto = new File([blob], `${cropSourceFile.name.replace(/\.[^.]+$/, "")}-recortada.jpg`, { type: "image/jpeg" });
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = URL.createObjectURL(blob);
+    el.photoPreview.src = previewUrl;
+    el.photoPreview.hidden = false;
+    el.uploadPrompt.hidden = true;
+    closeCropEditor();
+    showMessage(el.formFeedback, "");
+  }, "image/jpeg", 0.92);
+}
+
+el.cropZoom.addEventListener("input", () => {
+  cropZoom = Number(el.cropZoom.value);
+  drawCropPreview();
+});
+el.rotateLeft.addEventListener("click", () => rotateCrop(-90));
+el.rotateRight.addEventListener("click", () => rotateCrop(90));
+el.applyCrop.addEventListener("click", applyCrop);
+el.closeCrop.addEventListener("click", closeCropEditor);
+el.cropDialog.addEventListener("click", event => {
+  if (event.target === el.cropDialog) closeCropEditor();
+});
+el.cropCanvas.addEventListener("pointerdown", event => {
+  if (!cropImage) return;
+  const bounds = el.cropCanvas.getBoundingClientRect();
+  cropDrag = {
+    pointerId: event.pointerId,
+    x: event.clientX,
+    y: event.clientY,
+    scaleX: el.cropCanvas.width / bounds.width,
+    scaleY: el.cropCanvas.height / bounds.height
+  };
+  el.cropCanvas.setPointerCapture(event.pointerId);
+});
+el.cropCanvas.addEventListener("pointermove", event => {
+  if (!cropDrag || cropDrag.pointerId !== event.pointerId) return;
+  cropPanX += (event.clientX - cropDrag.x) * cropDrag.scaleX;
+  cropPanY += (event.clientY - cropDrag.y) * cropDrag.scaleY;
+  cropDrag.x = event.clientX;
+  cropDrag.y = event.clientY;
+  drawCropPreview();
+});
+el.cropCanvas.addEventListener("pointerup", event => {
+  if (cropDrag?.pointerId === event.pointerId) cropDrag = null;
+});
+el.cropCanvas.addEventListener("pointercancel", () => { cropDrag = null; });
 
 el.grid.addEventListener("click", event => {
   const editButton = event.target.closest("[data-edit]");

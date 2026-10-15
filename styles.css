@@ -110,6 +110,8 @@ h1, h2, p { margin-top: 0; }
 .phone-name { margin: 0 0 6px; overflow: hidden; font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .phone-price { margin: 0; color: var(--green); font-family: Manrope, sans-serif; font-size: 20px; font-weight: 800; letter-spacing: -.6px; }
 .phone-price::before { content: "$"; margin-right: 2px; font-size: 14px; vertical-align: 2px; }
+.admin-cost { margin: 7px 0 0; padding-top: 7px; border-top: 1px solid var(--line); color: #765a36; font-size: 12px; font-weight: 600; }
+.admin-cost strong { color: var(--ink); font-weight: 700; }
 
 .empty-state { max-width: 430px; margin: 54px auto 90px; padding: 30px 20px; text-align: center; }
 .empty-icon { width: 54px; height: 54px; margin: 0 auto 18px; display: grid; place-items: center; border-radius: 18px; background: var(--soft-green); color: var(--green); font-size: 27px; }
@@ -137,12 +139,14 @@ h1, h2, p { margin-top: 0; }
 .phone-dialog { width: min(100% - 28px, 470px); max-height: min(90vh, 760px); padding: 0; overflow: auto; border: 0; border-radius: 18px; background: white; box-shadow: 0 24px 80px rgb(0 0 0 / 23%); }
 .phone-dialog::backdrop { background: rgb(30 37 31 / 46%); backdrop-filter: blur(3px); }
 .phone-form { padding: 28px; }
+.phone-form .label-note { font-size: 11px; }
 .dialog-heading { margin-bottom: 23px; display: flex; justify-content: space-between; align-items: flex-start; }
 .dialog-heading .eyebrow { margin-bottom: 6px; }
 .dialog-heading h2 { margin-bottom: 0; font-family: Manrope, sans-serif; font-size: 23px; letter-spacing: -.8px; }
 .close-button { width: 32px; height: 32px; border: 0; border-radius: 50%; background: #f2f2ee; color: var(--muted); font-size: 22px; line-height: 1; }
 .phone-form > input:not(.visually-hidden) { display: block; }
 .price-input { display: flex; align-items: center; gap: 8px; }
+.price-input.cost-input { border-color: #e6dfd3; background: #fcfaf6; }
 .price-input span { color: var(--muted); }
 .price-input input { width: 100%; height: 100%; border: 0; outline: none; background: transparent; color: var(--ink); }
 .label-note { color: var(--muted); font-weight: 400; }
@@ -157,6 +161,18 @@ h1, h2, p { margin-top: 0; }
 .upload-area #upload-prompt > span:last-child { color: var(--muted); font-size: 11px; }
 .upload-icon { width: 33px; height: 33px; margin: auto; display: grid !important; place-items: center; border-radius: 50%; background: var(--soft-green); color: var(--green); font-size: 19px; }
 .dialog-actions { margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; }
+.crop-dialog { width: min(100% - 28px, 510px); max-height: 92vh; padding: 0; overflow: auto; border: 0; border-radius: 18px; background: white; box-shadow: 0 24px 80px rgb(0 0 0 / 23%); }
+.crop-dialog::backdrop { background: rgb(30 37 31 / 55%); backdrop-filter: blur(3px); }
+.crop-content { padding: 25px; }
+.crop-content .dialog-heading { margin-bottom: 8px; }
+.crop-hint { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
+.crop-stage { width: min(100%, 360px); margin: 0 auto; overflow: hidden; border-radius: 10px; background: #242722; touch-action: none; }
+.crop-stage canvas { width: 100%; height: auto; display: block; cursor: grab; touch-action: none; }
+.crop-stage canvas:active { cursor: grabbing; }
+.zoom-control { width: min(100%, 360px); margin: 15px auto; display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 11px; }
+.zoom-control input { flex: 1; accent-color: var(--green); }
+.crop-actions { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.crop-actions .button { padding: 0 12px; white-space: nowrap; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
 .toast { position: fixed; right: 20px; bottom: 20px; z-index: 5; max-width: min(380px, calc(100vw - 40px)); padding: 13px 17px; transform: translateY(15px); border-radius: 10px; background: #263d2f; color: white; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
 .toast.visible { transform: translateY(0); opacity: 1; }
@@ -183,12 +199,16 @@ h1, h2, p { margin-top: 0; }
   .phone-details { padding: 11px 11px 13px; }
   .phone-name { font-size: 12px; }
   .phone-price { font-size: 17px; }
+  .admin-cost { font-size: 11px; }
   .card-actions { opacity: 1; }
   .icon-button { width: 31px; height: 31px; }
   .user-email { max-width: 135px; font-size: 11px; }
   .topbar-actions { gap: 5px; }
   .button-quiet { padding: 0 10px; }
   .auth-card { padding: 30px 24px; }
+  .crop-content { padding: 19px; }
+  .crop-actions { flex-wrap: wrap; }
+  .crop-actions .button-primary { flex: 1 0 100%; order: 1; }
 }
 
 @media (max-width: 370px) {

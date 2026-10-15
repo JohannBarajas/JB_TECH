@@ -156,3 +156,68 @@ create policy "Only catalog admins can delete photos"
       where user_id = (select auth.uid())
     )
   );
+
+create table if not exists public.catalog_phone_costs (
+  phone_id uuid primary key references public.catalog_phones (id) on delete cascade,
+  cost numeric(12, 2) not null check (cost >= 0),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.catalog_phone_costs enable row level security;
+revoke all on public.catalog_phone_costs from anon, public;
+grant select, insert, update, delete on public.catalog_phone_costs to authenticated;
+
+drop policy if exists "Only catalog admins can view phone costs" on public.catalog_phone_costs;
+create policy "Only catalog admins can view phone costs"
+  on public.catalog_phone_costs for select
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.catalog_admins
+      where user_id = (select auth.uid())
+    )
+  );
+
+drop policy if exists "Only catalog admins can add phone costs" on public.catalog_phone_costs;
+create policy "Only catalog admins can add phone costs"
+  on public.catalog_phone_costs for insert
+  to authenticated
+  with check (
+    exists (
+      select 1
+      from public.catalog_admins
+      where user_id = (select auth.uid())
+    )
+  );
+
+drop policy if exists "Only catalog admins can update phone costs" on public.catalog_phone_costs;
+create policy "Only catalog admins can update phone costs"
+  on public.catalog_phone_costs for update
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.catalog_admins
+      where user_id = (select auth.uid())
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from public.catalog_admins
+      where user_id = (select auth.uid())
+    )
+  );
+
+drop policy if exists "Only catalog admins can delete phone costs" on public.catalog_phone_costs;
+create policy "Only catalog admins can delete phone costs"
+  on public.catalog_phone_costs for delete
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.catalog_admins
+      where user_id = (select auth.uid())
+    )
+  );
